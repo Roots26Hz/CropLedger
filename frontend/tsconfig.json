@@ -19,5 +19,5 @@
     }
   },
   "include": ["src", "vite.config.ts", "../simulator/**/*.ts", "../abi/*.json"],
-  "exclude": ["../simulator/cli.ts", "../simulator/__tests__", "src/**/*.test.ts"]
+  "exclude": ["../simulator/cli.ts", "../simulator/__tests__"]
 }

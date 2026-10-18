@@ -131,7 +131,7 @@ export function decodeError(err: unknown): DecodedError {
   }
   const data = findRevertData(err);
   if (data) {
-    let parsed: ErrorDescription | null = null;
+    let parsed: ErrorDescription | null;
     try {
       parsed = cropLedgerInterface.parseError(data);
     } catch {
