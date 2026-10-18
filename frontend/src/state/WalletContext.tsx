@@ -9,6 +9,7 @@ import {
   getBrowserSigner,
   getInjectedProvider,
   getWalletChainId,
+  listenForWallets,
   requestAccounts,
   revokeWalletPermissions,
   switchWalletNetwork,
@@ -41,14 +42,26 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<DecodedError | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Late-injected wallets (some extensions inject after page load).
+  // Wallets that announce themselves via EIP-6963, or inject window.ethereum
+  // slightly after page load. MetaMask is preferred when several are present.
   useEffect(() => {
-    if (providerRef.current) return;
+    const adopt = (provider: Eip1193Provider) => {
+      providerRef.current = provider;
+      setStatus((s) => (s === "unavailable" ? "disconnected" : s));
+    };
+    const stop = listenForWallets((detail) => {
+      if (!providerRef.current || detail.info.rdns === "io.metamask") adopt(detail.provider);
+    });
     const timer = setTimeout(() => {
-      providerRef.current = getInjectedProvider();
-      if (providerRef.current) setStatus("disconnected");
+      if (!providerRef.current) {
+        const injected = getInjectedProvider();
+        if (injected) adopt(injected);
+      }
     }, 600);
-    return () => clearTimeout(timer);
+    return () => {
+      stop();
+      clearTimeout(timer);
+    };
   }, []);
 
   const available = status !== "unavailable";

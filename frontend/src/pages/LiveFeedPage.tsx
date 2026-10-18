@@ -114,7 +114,7 @@ export function LiveFeedPage() {
                     {sim.devices.map((d) => (
                       <option key={d.label} value={d.label}>
                         {d.label} · {d.fieldLabel}
-                        {!d.registered ? " (not registered)" : !d.active ? " (revoked)" : ""}
+                        {d.conflict ? " (ID registered with a different key)" : !d.registered ? " (not registered)" : !d.active ? " (revoked)" : ""}
                       </option>
                     ))}
                   </Select>
@@ -192,7 +192,13 @@ export function LiveFeedPage() {
                   Readings can be generated and signed now, but submitting them needs a wallet: {ledger.writeBlocker}
                 </Callout>
               )}
-              {selectedDevice && !selectedDevice.registered && (
+              {selectedDevice?.conflict && (
+                <Callout tone="warning">
+                  This ledger already has a device with the ID {selectedDevice.label}, registered with a different signing key (for example by the CLI or another browser).
+                  Readings signed by this browser's key will be rejected with InvalidSignature. Choose another device.
+                </Callout>
+              )}
+              {selectedDevice && !selectedDevice.registered && !selectedDevice.conflict && (
                 <Callout tone="warning">This device is not registered on the current ledger, so its readings will be rejected as an unregistered device.</Callout>
               )}
               {selectedDevice?.registered && !selectedDevice.active && (

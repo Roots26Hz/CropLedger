@@ -28,7 +28,17 @@ export default defineConfig({
     },
   },
   networks: {
-    // `npx hardhat node` JSON-RPC endpoint (chain ID 31337).
+    // Simulated chain served by `npm run node` (hardhat node --network localNode).
+    // Like a public RPC node, it mines reverting transactions with status 0
+    // instead of rejecting them at send time, so the dashboard can show a
+    // genuine "reverted on-chain" result. Calls (eth_call) still revert normally.
+    localNode: {
+      type: "edr-simulated",
+      chainType: "l1",
+      chainId: 31337,
+      throwOnTransactionFailures: false,
+    },
+    // `npm run node` JSON-RPC endpoint (chain ID 31337).
     localhost: {
       type: "http",
       chainType: "l1",

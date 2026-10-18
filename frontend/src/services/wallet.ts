@@ -27,6 +27,27 @@ export function getInjectedProvider(): Eip1193Provider | null {
   return metaMask ?? injected;
 }
 
+/** EIP-6963 provider announcement (multi-wallet discovery). */
+export interface Eip6963ProviderDetail {
+  info: { uuid: string; name: string; icon: string; rdns: string };
+  provider: Eip1193Provider;
+}
+
+/**
+ * Listen for wallets announcing themselves via EIP-6963 (supported by current
+ * MetaMask). Handles wallets that inject after page load and setups with
+ * several wallet extensions. Returns an unsubscribe function.
+ */
+export function listenForWallets(onWallet: (detail: Eip6963ProviderDetail) => void): () => void {
+  const handler = (event: Event) => {
+    const detail = (event as CustomEvent<Eip6963ProviderDetail>).detail;
+    if (detail?.provider && typeof detail.provider.request === "function") onWallet(detail);
+  };
+  window.addEventListener("eip6963:announceProvider", handler);
+  window.dispatchEvent(new Event("eip6963:requestProvider"));
+  return () => window.removeEventListener("eip6963:announceProvider", handler);
+}
+
 export async function requestAccounts(provider: Eip1193Provider): Promise<string[]> {
   return (await provider.request({ method: "eth_requestAccounts" })) as string[];
 }

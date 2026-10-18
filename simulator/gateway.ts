@@ -196,13 +196,16 @@ export async function sendTracked(
   try {
     const receipt = await tx.wait(options.confirmations ?? 1);
     if (!receipt || receipt.status !== 1) {
+      const reason = await recoverRevertReason(contract, tx, receipt?.blockNumber);
       return finish(
         {
           stage: "reverted",
           txHash,
           blockNumber: receipt?.blockNumber,
           gasUsed: receipt?.gasUsed,
-          error: { kind: "contract", message: "The transaction was mined but reverted." },
+          error: reason
+            ? { ...reason, message: `Mined but reverted (gas was spent). ${reason.message}` }
+            : { kind: "contract", message: "The transaction was mined but reverted." },
         },
         false,
       );
@@ -220,16 +223,44 @@ export async function sendTracked(
   } catch (error) {
     // ethers throws CALL_EXCEPTION for receipts with status 0.
     const receipt = (error as { receipt?: { blockNumber?: number; gasUsed?: bigint } }).receipt;
-    const decoded = decodeError(error);
+    const decoded = (receipt ? await recoverRevertReason(contract, tx, receipt.blockNumber) : null) ?? decodeError(error);
     return finish(
       {
         stage: receipt ? "reverted" : "failed",
         txHash,
         blockNumber: receipt?.blockNumber,
         gasUsed: receipt?.gasUsed,
-        error: receipt ? { ...decoded, message: `Mined but reverted. ${decoded.message}` } : decoded,
+        error: receipt ? { ...decoded, message: `Mined but reverted (gas was spent). ${decoded.message}` } : decoded,
       },
       false,
     );
+  }
+}
+
+/**
+ * Receipts do not carry revert data, so after a mined-but-reverted
+ * transaction we replay the same call with eth_call on the state just before
+ * its block to recover the contract's custom error. Best effort: returns null
+ * if no CropLedger error can be decoded.
+ */
+async function recoverRevertReason(
+  contract: Contract,
+  tx: ContractTransactionResponse,
+  blockNumber: number | undefined,
+): Promise<DecodedError | null> {
+  const provider = contract.runner?.provider;
+  if (!provider) return null;
+  try {
+    await provider.call({
+      to: tx.to,
+      from: tx.from,
+      data: tx.data,
+      value: tx.value,
+      blockTag: blockNumber !== undefined && blockNumber > 0 ? blockNumber - 1 : "latest",
+    });
+    return null;
+  } catch (error) {
+    const decoded = decodeError(error);
+    return decoded.kind === "contract" && decoded.name ? decoded : null;
   }
 }

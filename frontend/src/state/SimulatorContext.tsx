@@ -28,6 +28,8 @@ export interface SimDeviceOption {
   firmware: string;
   registered: boolean;
   active: boolean;
+  /** The ledger has a device with this ID but a different signing key. */
+  conflict: boolean;
 }
 
 interface SimulatorContextValue {
@@ -65,6 +67,8 @@ export function SimulatorProvider({ children }: { children: ReactNode }) {
 
   const [feed, setFeed] = useState<FeedItem[]>(() => loadJson<FeedItem[]>(`feed.v1.${scope}`, []));
   const [selected, setSelectedState] = useState<string | null>(null);
+  /** True once the user picked a device; until then the best device is auto-selected. */
+  const [userSelected, setUserSelected] = useState(false);
   const [running, setRunning] = useState(false);
   const [intervalSec, setIntervalSec] = useState(5);
   const [autoSubmit, setAutoSubmit] = useState(service?.kind !== "evm");
@@ -79,6 +83,7 @@ export function SimulatorProvider({ children }: { children: ReactNode }) {
     setFeed(loadJson<FeedItem[]>(`feed.v1.${scope}`, []));
     simulators.current.clear();
     setRunning(false);
+    setUserSelected(false);
   }, [scope]);
 
   useEffect(() => {
@@ -88,18 +93,27 @@ export function SimulatorProvider({ children }: { children: ReactNode }) {
   const devices = useMemo<SimDeviceOption[]>(
     () =>
       deviceKeys.map((k) => {
-        const onLedger = ledgerDevices.find((d) => d.label === k.label && d.signer.toLowerCase() === k.address.toLowerCase());
-        return { label: k.label, fieldLabel: k.fieldLabel, firmware: k.firmware, registered: Boolean(onLedger), active: onLedger?.active ?? false };
+        const sameId = ledgerDevices.find((d) => d.label === k.label);
+        const onLedger = sameId && sameId.signer.toLowerCase() === k.address.toLowerCase() ? sameId : undefined;
+        return {
+          label: k.label,
+          fieldLabel: k.fieldLabel,
+          firmware: k.firmware,
+          registered: Boolean(onLedger),
+          active: onLedger?.active ?? false,
+          conflict: Boolean(sameId && !onLedger),
+        };
       }),
     [deviceKeys, ledgerDevices],
   );
 
-  // Default selection: first registered, active device with a local key.
+  // Default selection: first registered, active device with a local key. It
+  // is re-evaluated as ledger data arrives until the user chooses explicitly.
   useEffect(() => {
-    if (selected && devices.some((d) => d.label === selected)) return;
-    const preferred = devices.find((d) => d.registered && d.active) ?? devices[0];
+    if (userSelected && selected && devices.some((d) => d.label === selected)) return;
+    const preferred = devices.find((d) => d.registered && d.active) ?? devices.find((d) => !d.conflict) ?? devices[0];
     setSelectedState(preferred?.label ?? null);
-  }, [devices, selected]);
+  }, [devices, selected, userSelected]);
 
   const persistFeed = useCallback(
     (updater: (all: FeedItem[]) => FeedItem[]) => {
@@ -254,7 +268,10 @@ export function SimulatorProvider({ children }: { children: ReactNode }) {
       feed,
       devices,
       selected,
-      setSelected: setSelectedState,
+      setSelected: (label: string) => {
+        setUserSelected(true);
+        setSelectedState(label);
+      },
       running,
       intervalSec,
       setIntervalSec,

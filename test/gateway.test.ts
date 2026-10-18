@@ -83,6 +83,8 @@ describe("Gateway", function () {
     expect(result.ok).to.equal(false);
     expect(result.stage).to.equal("reverted");
     expect(result.txHash).to.match(/^0x[0-9a-f]{64}$/);
+    // The custom error is recovered by re-simulating the mined call.
+    expect(result.error?.name).to.equal("DeviceNotActive");
     const receipt = await ethers.provider.getTransactionReceipt(result.txHash!);
     expect(receipt!.status).to.equal(0);
   });
