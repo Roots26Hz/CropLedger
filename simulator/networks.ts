@@ -12,9 +12,13 @@ export interface NetworkConfig {
   shortName: string;
   nativeCurrency: { name: string; symbol: string; decimals: number };
   defaultRpcUrl: string;
+  /** Other public endpoints known to work (fallbacks if the default is down). */
+  alternativeRpcUrls: string[];
+  /** Endpoints that used to serve this chain but have been shut down. */
+  retiredRpcUrls: string[];
   /** Block explorer for this exact network (undefined for local chains). */
   explorer?: { name: string; url: string };
-  /** Where to obtain test tokens (informational). */
+  /** Where to obtain test tokens (informational; availability changes). */
   faucets: string[];
 }
 
@@ -24,9 +28,17 @@ export const POLYGON_AMOY: NetworkConfig = {
   name: "Polygon Amoy Testnet",
   shortName: "Amoy",
   nativeCurrency: { name: "POL", symbol: "POL", decimals: 18 },
-  defaultRpcUrl: "https://rpc-amoy.polygon.technology",
+  // Endpoint listed in Polygon's official docs. The former public endpoint
+  // rpc-amoy.polygon.technology was shut down in July 2026 (no longer resolves).
+  defaultRpcUrl: "https://polygon-amoy.drpc.org",
+  alternativeRpcUrls: ["https://polygon-amoy-bor-rpc.publicnode.com", "https://polygon-amoy.gateway.tenderly.co"],
+  retiredRpcUrls: ["https://rpc-amoy.polygon.technology"],
   explorer: { name: "PolygonScan (Amoy)", url: "https://amoy.polygonscan.com" },
-  faucets: ["https://faucet.polygon.technology/"],
+  faucets: [
+    "https://faucet.polygon.technology/",
+    "https://www.alchemy.com/faucets/polygon-amoy",
+    "https://faucet.quicknode.com/polygon/amoy",
+  ],
 };
 
 export const HARDHAT_LOCAL: NetworkConfig = {
@@ -36,6 +48,8 @@ export const HARDHAT_LOCAL: NetworkConfig = {
   shortName: "Hardhat",
   nativeCurrency: { name: "Local test ETH", symbol: "ETH", decimals: 18 },
   defaultRpcUrl: "http://127.0.0.1:8545",
+  alternativeRpcUrls: [],
+  retiredRpcUrls: [],
   faucets: [],
 };
 
@@ -68,6 +82,12 @@ export function isSupportedChain(chainId: number | bigint): boolean {
 export function chainLabel(chainId: number | bigint): string {
   const id = Number(chainId);
   return getNetwork(id)?.name ?? KNOWN_CHAINS[id] ?? `Unknown chain ${id}`;
+}
+
+/** True if the URL is an endpoint that no longer serves this chain. */
+export function isRetiredRpcUrl(chainId: number | bigint, url: string): boolean {
+  const normalized = url.trim().replace(/\/+$/, "").toLowerCase();
+  return getNetwork(chainId)?.retiredRpcUrls.some((r) => r.toLowerCase() === normalized) ?? false;
 }
 
 /** Throws if the chain is not an allowed testnet/local chain. */

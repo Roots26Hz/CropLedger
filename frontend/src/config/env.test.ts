@@ -6,7 +6,7 @@ describe("readEnvConfig", () => {
     const cfg = readEnvConfig({
       VITE_CHAIN_ID: "80002",
       VITE_CONTRACT_ADDRESS: "0x5fbdb2315678afecb367f032d93f642f64180aa3",
-      VITE_RPC_URL: "https://rpc-amoy.polygon.technology",
+      VITE_RPC_URL: "https://polygon-amoy.drpc.org",
       VITE_DEPLOY_BLOCK: "123",
     } as ImportMetaEnv);
     expect(cfg.issues).toEqual([]);
@@ -29,6 +29,12 @@ describe("readEnvConfig", () => {
     expect(cfg.issues).toHaveLength(3);
   });
 
+  it("replaces the retired Amoy RPC endpoint and says so", () => {
+    const cfg = readEnvConfig({ VITE_CHAIN_ID: "80002", VITE_RPC_URL: "https://rpc-amoy.polygon.technology" } as ImportMetaEnv);
+    expect(cfg.rpcUrl).toBeNull();
+    expect(cfg.issues[0]).toMatch(/shut down/);
+  });
+
   it("treats empty values as unset (local demo mode)", () => {
     const cfg = readEnvConfig({ VITE_CHAIN_ID: "", VITE_CONTRACT_ADDRESS: "  " } as ImportMetaEnv);
     expect(cfg).toMatchObject({ chainId: null, contractAddress: null, issues: [] });
@@ -39,7 +45,7 @@ describe("maskRpcUrl", () => {
   it("hides paths that may contain API keys", () => {
     expect(maskRpcUrl("https://polygon-amoy.g.alchemy.com/v2/SECRETKEY123")).toBe("https://polygon-amoy.g.alchemy.com/•••");
     expect(maskRpcUrl("https://rpc.example.com?apikey=SECRET")).toBe("https://rpc.example.com/•••");
-    expect(maskRpcUrl("https://rpc-amoy.polygon.technology")).toBe("https://rpc-amoy.polygon.technology");
+    expect(maskRpcUrl("https://polygon-amoy.drpc.org")).toBe("https://polygon-amoy.drpc.org");
     expect(maskRpcUrl("not a url")).toBe("(invalid URL)");
   });
 });

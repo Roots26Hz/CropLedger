@@ -19,7 +19,7 @@ import { Gateway, cropLedgerContract, type SubmissionUpdate } from "./gateway.js
 import { firmwareHashFor, fromBytes32Id, isValidId, toBytes32Id } from "./ids.js";
 import { LocalLedger } from "./localLedger.js";
 import { hashPayload, parsePayloadJson, prettyPayload } from "./payload.js";
-import { HARDHAT_LOCAL, POLYGON_AMOY, assertSupportedChain, explorerTxUrl } from "./networks.js";
+import { HARDHAT_LOCAL, POLYGON_AMOY, assertSupportedChain, explorerTxUrl, isRetiredRpcUrl } from "./networks.js";
 import { signedReadingFromJson, signedReadingToJson, type SignedReadingJson } from "./serialization.js";
 import { LOCAL_DEMO_DOMAIN, signReading, toSubmitArgs } from "./signing.js";
 import type { DeploymentDomain, ReadingPayload, SignedReading } from "./types.js";
@@ -103,7 +103,11 @@ function resolveContractAddress(networkName: string, explicit?: string): string 
 async function connect(networkName: string, contractAddress?: string): Promise<Connection> {
   const isLocal = networkName === "localhost";
   if (!isLocal && networkName !== "amoy") fail('--network must be "localhost" or "amoy".');
-  const rpcUrl = isLocal ? HARDHAT_LOCAL.defaultRpcUrl : process.env.AMOY_RPC_URL || POLYGON_AMOY.defaultRpcUrl;
+  let rpcUrl = isLocal ? HARDHAT_LOCAL.defaultRpcUrl : process.env.AMOY_RPC_URL || POLYGON_AMOY.defaultRpcUrl;
+  if (!isLocal && isRetiredRpcUrl(POLYGON_AMOY.chainId, rpcUrl)) {
+    console.warn(`AMOY_RPC_URL ${rpcUrl} has been shut down; using ${POLYGON_AMOY.defaultRpcUrl}. Update your .env.`);
+    rpcUrl = POLYGON_AMOY.defaultRpcUrl;
+  }
   const provider = new JsonRpcProvider(rpcUrl, undefined, { staticNetwork: true });
   let chainId: bigint;
   try {

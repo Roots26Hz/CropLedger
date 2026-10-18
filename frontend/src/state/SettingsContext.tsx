@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { isAddress } from "ethers";
-import { getNetwork, POLYGON_AMOY } from "@core/networks.js";
+import { getNetwork, isRetiredRpcUrl, POLYGON_AMOY } from "@core/networks.js";
 import { ENV } from "../config/env";
 import { loadJson, saveJson } from "../services/storage";
 import type { AppMode, Settings } from "../types/app";
@@ -24,6 +24,8 @@ function loadInitial(): Settings {
   const defaults = envDefaults();
   const saved = loadJson<Settings | null>(SETTINGS_KEY, null);
   const base = saved && saved.source === "user" && getNetwork(saved.chainId) ? { ...defaults, ...saved } : defaults;
+  // Settings saved before Polygon retired its old public Amoy endpoint.
+  if (isRetiredRpcUrl(base.chainId, base.rpcUrl)) base.rpcUrl = getNetwork(base.chainId)!.defaultRpcUrl;
   const mode = loadJson<AppMode | null>(MODE_KEY, null);
   return { ...base, mode: mode === "local" || mode === "network" ? mode : base.mode };
 }

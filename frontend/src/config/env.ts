@@ -3,7 +3,7 @@
  * These values are PUBLIC: they are compiled into the browser bundle.
  */
 import { isAddress, getAddress } from "ethers";
-import { getNetwork, chainLabel } from "@core/networks.js";
+import { chainLabel, getNetwork, isRetiredRpcUrl, POLYGON_AMOY } from "@core/networks.js";
 
 export interface EnvConfig {
   chainId: number | null;
@@ -38,8 +38,12 @@ export function readEnvConfig(env: ImportMetaEnv = import.meta.env): EnvConfig {
     else issues.push("VITE_CONTRACT_ADDRESS is not a valid address.");
   }
 
-  const rpcUrl = clean(env.VITE_RPC_URL);
+  let rpcUrl = clean(env.VITE_RPC_URL);
   if (rpcUrl && !/^https?:\/\//.test(rpcUrl)) issues.push("VITE_RPC_URL must start with http:// or https://.");
+  if (rpcUrl && isRetiredRpcUrl(chainId ?? POLYGON_AMOY.chainId, rpcUrl)) {
+    issues.push(`VITE_RPC_URL ${rpcUrl} has been shut down by Polygon; using ${POLYGON_AMOY.defaultRpcUrl} instead. Update your .env.`);
+    rpcUrl = null;
+  }
 
   let deployBlock: number | null = null;
   const rawBlock = clean(env.VITE_DEPLOY_BLOCK);

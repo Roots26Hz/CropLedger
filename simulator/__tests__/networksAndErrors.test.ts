@@ -10,6 +10,7 @@ import {
   explorerAddressUrl,
   explorerBlockUrl,
   explorerTxUrl,
+  isRetiredRpcUrl,
   isSupportedChain,
   POLYGON_AMOY,
 } from "../networks.js";
@@ -39,12 +40,18 @@ describe("network registry", () => {
     expect(explorerTxUrl(137, TX)).toBeUndefined();
   });
 
+  it("recognises the retired Amoy RPC endpoint", () => {
+    expect(isRetiredRpcUrl(80002, "https://rpc-amoy.polygon.technology/")).toBe(true);
+    expect(isRetiredRpcUrl(80002, POLYGON_AMOY.defaultRpcUrl)).toBe(false);
+    expect(isRetiredRpcUrl(31337, "https://rpc-amoy.polygon.technology")).toBe(false);
+  });
+
   it("builds wallet_addEthereumChain parameters", () => {
     expect(addChainParameters(POLYGON_AMOY)).toEqual({
       chainId: "0x13882",
       chainName: "Polygon Amoy Testnet",
       nativeCurrency: { name: "POL", symbol: "POL", decimals: 18 },
-      rpcUrls: ["https://rpc-amoy.polygon.technology"],
+      rpcUrls: ["https://polygon-amoy.drpc.org"],
       blockExplorerUrls: ["https://amoy.polygonscan.com"],
     });
   });
