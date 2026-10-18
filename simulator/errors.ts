@@ -138,7 +138,8 @@ function nestedMessages(err: unknown, depth = 0, out: string[] = []): string[] {
 /** The most specific human-readable cause inside an error. */
 function specificMessage(err: unknown): string {
   const messages = nestedMessages(err)
-    .map((m) => m.replace(/\s*\(.*$/s, "").trim())
+    // Drop ethers' "(error={...}, code=...)" suffix but keep real detail like "(10000)".
+    .map((m) => m.replace(/\s*\((?:[a-zA-Z]+=).*$/s, "").trim())
     .filter((m) => m && !GENERIC_MESSAGE.test(m));
   return messages.at(-1) ?? shortMessage(err);
 }
@@ -198,18 +199,36 @@ export function decodeError(err: unknown): DecodedError {
       detail,
     };
   }
-  if (isError(err, "INSUFFICIENT_FUNDS") || /insufficient funds/i.test(all)) {
-    return { kind: "insufficient-funds", message: "The sending account does not have enough test tokens to pay for gas. Use a faucet first.", detail };
+  // Polygon/geth answer "gas required exceeds allowance" when the balance
+  // cannot cover gas × fee cap; ethers reports that as a call exception.
+  if (isError(err, "INSUFFICIENT_FUNDS") || /insufficient funds|gas required exceeds allowance/i.test(all)) {
+    return {
+      kind: "insufficient-funds",
+      message: "The connected account does not have enough test tokens (POL on Amoy) to pay for this transaction's gas. Top it up from a faucet, then retry.",
+      detail,
+    };
   }
-  if (/\b429\b|too many requests|rate limit|request limit|exceeded/i.test(all)) {
+  if (/\b429\b|too many requests|rate limit|request limit|batch of more than|free plan|free tier|request timeout|timed? ?out/i.test(all)) {
     return {
       kind: "rpc",
-      message: "The RPC endpoint is rate-limiting requests. Wait a few seconds and retry, or choose another Amoy RPC (System Configuration, or the network settings in MetaMask).",
+      message: "The RPC endpoint refused or timed out the request (free-plan limits). Wait a few seconds and retry, or choose another Amoy RPC in System Configuration or in MetaMask's network settings.",
       detail,
     };
   }
   if (isError(err, "CALL_EXCEPTION")) {
-    return { kind: "contract", message: "The transaction reverted on-chain without a decodable reason.", detail: shortMessage(err) };
+    // ethers reports EVERY eth_call / eth_estimateGas error as a call
+    // exception, so only a plain "execution reverted" is a real revert.
+    const action = (err as { action?: string }).action;
+    const nodeSaid = detail && !/^missing revert data$/i.test(detail) ? detail : undefined;
+    if (nodeSaid && !/revert/i.test(nodeSaid)) {
+      return { kind: "rpc", message: `The node refused the ${action === "estimateGas" ? "gas estimate" : "call"}: ${nodeSaid}`, detail: nodeSaid };
+    }
+    return {
+      kind: "contract",
+      message:
+        "The contract rejected the call without a reason. Check in System Configuration → Run checks that the address is your CropLedger deployment on this network.",
+      detail: nodeSaid ?? shortMessage(err),
+    };
   }
   if (
     isError(err, "NETWORK_ERROR") ||

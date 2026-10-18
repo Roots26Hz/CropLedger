@@ -109,7 +109,54 @@ describe("error decoding", () => {
     expect(decodeError({ code: -32603, message: "Internal JSON-RPC error.", data: { message: "nonce too low" } }).kind).toBe("nonce-conflict");
     const limited = decodeError({ code: -32603, message: "Internal JSON-RPC error.", data: { message: "429 Too Many Requests" } });
     expect(limited.kind).toBe("rpc");
-    expect(limited.message).toMatch(/rate-limiting/);
+    expect(limited.message).toMatch(/refused or timed out/);
+  });
+
+  it("treats Polygon's 'gas required exceeds allowance' as insufficient funds, not a revert", () => {
+    // What ethers raises for an eth_estimateGas the node refused.
+    const err = makeError("missing revert data", "CALL_EXCEPTION", {
+      action: "estimateGas",
+      data: null,
+      reason: null,
+      transaction: { to: "0x1111111111111111111111111111111111111111", data: "0x" },
+      invocation: null,
+      revert: null,
+      info: { error: { code: -32000, message: "gas required exceeds allowance (10000)" } },
+    });
+    const decoded = decodeError(err);
+    expect(decoded.kind).toBe("insufficient-funds");
+    expect(decoded.detail).toBe("gas required exceeds allowance (10000)");
+  });
+
+  it("explains free-plan RPC refusals hidden inside call exceptions", () => {
+    const err = makeError("missing revert data", "CALL_EXCEPTION", {
+      action: "call",
+      data: null,
+      reason: null,
+      transaction: { to: "0x1111111111111111111111111111111111111111", data: "0x" },
+      invocation: null,
+      revert: null,
+      info: { error: { code: 30, message: "Batch of more than 3 requests are not allowed on free plan" } },
+    });
+    const decoded = decodeError(err);
+    expect(decoded.kind).toBe("rpc");
+    expect(decoded.message).toMatch(/free-plan limits/);
+  });
+
+  it("only calls a data-less revert a contract rejection, never 'on-chain'", () => {
+    const err = makeError("missing revert data", "CALL_EXCEPTION", {
+      action: "call",
+      data: null,
+      reason: null,
+      transaction: { to: "0x1111111111111111111111111111111111111111", data: "0x" },
+      invocation: null,
+      revert: null,
+      info: { error: { code: 3, message: "execution reverted" } },
+    });
+    const decoded = decodeError(err);
+    expect(decoded.kind).toBe("contract");
+    expect(decoded.message).not.toMatch(/on-chain/);
+    expect(decoded.message).toMatch(/Run checks/);
   });
 
   it("shows the innermost specific message for unknown wallet errors", () => {
