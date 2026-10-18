@@ -20,7 +20,7 @@ concurrency:
 jobs:
   test-and-build:
     name: Test, type-check, lint and build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Check out repository
