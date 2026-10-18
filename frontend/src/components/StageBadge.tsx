@@ -19,6 +19,11 @@ export const STAGES: Record<SubmissionStage, StageStyle> = {
   "wallet-rejected": { label: "Rejected in wallet", tone: "warning", hint: "You declined the request in MetaMask. Nothing was sent." },
   reverted: { label: "Reverted on-chain", tone: "danger", hint: "Mined in a block, but the contract reverted it (gas was spent)." },
   failed: { label: "Failed", tone: "danger", hint: "The operation could not be completed. See the error message." },
+  unconfirmed: {
+    label: "Unconfirmed",
+    tone: "warning",
+    hint: "Broadcast by the wallet, but no receipt was seen yet. Check the explorer link before resubmitting.",
+  },
 };
 
 export const FAILURE_STAGES: SubmissionStage[] = ["rejected-preflight", "wallet-rejected", "reverted", "failed"];

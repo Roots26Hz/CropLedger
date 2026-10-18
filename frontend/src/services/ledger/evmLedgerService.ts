@@ -6,9 +6,10 @@
  */
 import { Contract, JsonRpcProvider, Network, type Signer } from "ethers";
 import type { DecodedError } from "@core/errors.js";
-import { Gateway, cropLedgerContract, sendTracked } from "@core/gateway.js";
+import { suggestFees } from "@core/fees.js";
+import { Gateway, cropLedgerContract, sendTracked, type SubmitOptions } from "@core/gateway.js";
 import { fromBytes32Id } from "@core/ids.js";
-import { assertSupportedChain, chainLabel } from "@core/networks.js";
+import { assertSupportedChain, chainLabel, type NetworkConfig } from "@core/networks.js";
 import type { Hex, SignedReading, SubmitReadingArgs } from "@core/types.js";
 import type { BlockSummary, DeviceInfo, ReadingView } from "../../types/app";
 import type { LedgerResult, LedgerService, WriteOptions } from "./types";
@@ -41,11 +42,12 @@ export class EvmLedgerService implements LedgerService {
   readonly chainId: number;
   readonly domain;
   readonly provider: JsonRpcProvider;
+  readonly network: NetworkConfig;
   readonly contract: Contract;
   private readonly getSigner: SignerSource;
 
   constructor(options: { chainId: number; address: string; rpcUrl: string; signerSource: SignerSource }) {
-    assertSupportedChain(options.chainId);
+    this.network = assertSupportedChain(options.chainId);
     this.chainId = options.chainId;
     this.domain = { chainId: BigInt(options.chainId), verifyingContract: options.address };
     // staticNetwork: trust the configured chain and skip eth_chainId on every
@@ -124,6 +126,19 @@ export class EvmLedgerService implements LedgerService {
 
   // ------------------------------------------------------------------ writes
 
+  /**
+   * Options for every write: network-compliant fees (Polygon's minimum
+   * priority fee on Amoy) and the read RPC as an independent provider for
+   * following a transaction if the wallet's provider fails after broadcast.
+   */
+  private sendOptions(options: WriteOptions): SubmitOptions {
+    return {
+      ...options,
+      fees: () => suggestFees(this.network, { provider: this.provider }),
+      receiptProvider: this.provider,
+    };
+  }
+
   /** Connect the contract to the wallet signer after checking the network. */
   private async writable(options: WriteOptions): Promise<{ contract: Contract } | { result: LedgerResult }> {
     const source = await this.getSigner();
@@ -151,28 +166,28 @@ export class EvmLedgerService implements LedgerService {
   async submitReading(signed: SignedReading, options: WriteOptions = {}): Promise<LedgerResult> {
     const w = await this.writable(options);
     if ("result" in w) return w.result;
-    return new Gateway(w.contract, this.domain).submit(signed, options);
+    return new Gateway(w.contract, this.domain).submit(signed, this.sendOptions(options));
   }
 
   async submitRaw(args: SubmitReadingArgs, options: WriteOptions = {}): Promise<LedgerResult> {
     const w = await this.writable(options);
     if ("result" in w) return w.result;
     options.onUpdate?.({ stage: "validating", at: Date.now(), note: "Raw arguments (gateway checks bypassed for the attack demo)" });
-    return sendTracked(w.contract, "submitReading", args, options);
+    return sendTracked(w.contract, "submitReading", args, this.sendOptions(options));
   }
 
   async registerDevice(deviceId: Hex, signer: string, fieldId: Hex, firmwareHash: Hex, options: WriteOptions = {}): Promise<LedgerResult> {
     const w = await this.writable(options);
     if ("result" in w) return w.result;
     options.onUpdate?.({ stage: "validating", at: Date.now() });
-    return sendTracked(w.contract, "registerDevice", [deviceId, signer, fieldId, firmwareHash], options);
+    return sendTracked(w.contract, "registerDevice", [deviceId, signer, fieldId, firmwareHash], this.sendOptions(options));
   }
 
   async revokeDevice(deviceId: Hex, options: WriteOptions = {}): Promise<LedgerResult> {
     const w = await this.writable(options);
     if ("result" in w) return w.result;
     options.onUpdate?.({ stage: "validating", at: Date.now() });
-    return sendTracked(w.contract, "revokeDevice", [deviceId], options);
+    return sendTracked(w.contract, "revokeDevice", [deviceId], this.sendOptions(options));
   }
 
   // ---------------------------------------------------------- chain queries

@@ -20,6 +20,11 @@ export interface NetworkConfig {
   explorer?: { name: string; url: string };
   /** Where to obtain test tokens (informational; availability changes). */
   faucets: string[];
+  /**
+   * Fee rules the network enforces. Polygon PoS nodes reject transactions
+   * whose priority fee (tip) is below a fixed floor, even on Amoy.
+   */
+  feePolicy?: { minPriorityFeeGwei: number; gasStationUrl?: string };
 }
 
 export const POLYGON_AMOY: NetworkConfig = {
@@ -39,6 +44,9 @@ export const POLYGON_AMOY: NetworkConfig = {
     "https://www.alchemy.com/faucets/polygon-amoy",
     "https://faucet.quicknode.com/polygon/amoy",
   ],
+  // Polygon's gas station reports a 25 gwei minimum priority fee for Amoy;
+  // lower tips are refused by the network after the wallet signs.
+  feePolicy: { minPriorityFeeGwei: 25, gasStationUrl: "https://gasstation.polygon.technology/amoy" },
 };
 
 export const HARDHAT_LOCAL: NetworkConfig = {

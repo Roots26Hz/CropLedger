@@ -15,7 +15,8 @@ import { parseArgs } from "node:util";
 import { Contract, JsonRpcProvider, Wallet, getAddress, type Signer } from "ethers";
 import { ANOMALY_DESCRIPTIONS, EdgeDeviceSimulator, type AnomalyKind } from "./deviceSimulator.js";
 import { decodeError } from "./errors.js";
-import { Gateway, cropLedgerContract, type SubmissionUpdate } from "./gateway.js";
+import { suggestFees } from "./fees.js";
+import { Gateway, cropLedgerContract, type SubmissionUpdate, type SubmitOptions } from "./gateway.js";
 import { firmwareHashFor, fromBytes32Id, isValidId, toBytes32Id } from "./ids.js";
 import { LocalLedger } from "./localLedger.js";
 import { hashPayload, parsePayloadJson, prettyPayload } from "./payload.js";
@@ -145,6 +146,12 @@ async function connect(networkName: string, contractAddress?: string): Promise<C
     },
     gatewaySigner: async () => (isLocal ? provider.getSigner(1) : envWallet("GATEWAY_PRIVATE_KEY")),
   };
+}
+
+/** Fee and receipt options for writes on this connection (Amoy needs a fee floor). */
+function writeOptions(conn: Connection, onUpdate?: (u: SubmissionUpdate) => void): SubmitOptions {
+  const network = conn.networkName === "amoy" ? POLYGON_AMOY : HARDHAT_LOCAL;
+  return { onUpdate, fees: () => suggestFees(network, { provider: conn.provider }), receiptProvider: conn.provider };
 }
 
 async function lastNonceOnChain(conn: Connection, deviceId: string): Promise<number | null> {
@@ -288,11 +295,13 @@ async function cmdRegister(): Promise<void> {
   const contract = conn.contract.connect(owner) as Contract;
   console.log(`\nRegistering ${device.deviceId} on ${conn.networkName} (${conn.domain.verifyingContract})…`);
   try {
+    const fees = await writeOptions(conn).fees?.();
     const tx = await contract.getFunction("registerDevice")(
       toBytes32Id(device.deviceId),
       device.address,
       toBytes32Id(device.fieldId),
       firmwareHashFor(device.firmware),
+      fees ? { maxFeePerGas: fees.maxFeePerGas, maxPriorityFeePerGas: fees.maxPriorityFeePerGas } : {},
     );
     console.log(`  submitted ${tx.hash}`);
     const receipt = await tx.wait();
@@ -325,7 +334,7 @@ async function cmdRun(): Promise<void> {
     console.log(`\n${describeReading(payload)}${injected ? `  [injected: ${injected}]` : ""}`);
     console.log(`  payloadHash ${signed.payloadHash}`);
     console.log(`  off-chain payload saved to ${file.replace(`${ROOT}/`, "")}`);
-    await gateway.submit(signed, { onUpdate: (u) => printUpdate(u, conn.domain.chainId) });
+    await gateway.submit(signed, writeOptions(conn, (u) => printUpdate(u, conn.domain.chainId)));
     if (i < count - 1) await new Promise((r) => setTimeout(r, intervalMs));
   }
   console.log("");
@@ -374,7 +383,7 @@ async function cmdAttack(): Promise<void> {
   const conn = await connect(opts.network!, opts.contract);
   const gatewaySigner = await conn.gatewaySigner();
   const gateway = new Gateway(cropLedgerContract(conn.domain.verifyingContract, gatewaySigner), conn.domain);
-  const report = (u: SubmissionUpdate) => printUpdate(u, conn.domain.chainId);
+  const report = writeOptions(conn, (u: SubmissionUpdate) => printUpdate(u, conn.domain.chainId));
   const lastNonce = (await lastNonceOnChain(conn, device.deviceId)) ?? 0;
   const key = new Wallet(device.privateKey);
   const sim = simulatorFor(device, lastNonce);
@@ -383,16 +392,16 @@ async function cmdAttack(): Promise<void> {
   if (scenario === "replay") {
     const signed = await signReading(key, conn.domain, sim.generate().payload);
     console.log("1) Submitting a genuine reading:");
-    await gateway.submit(signed, { onUpdate: report });
+    await gateway.submit(signed, report);
     console.log("\n2) Re-submitting the exact same signed message (same nonce):");
-    await gateway.submit(signed, { onUpdate: report, forceBroadcast: opts["force-broadcast"] });
+    await gateway.submit(signed, { ...report, forceBroadcast: opts["force-broadcast"] });
   } else if (scenario === "unregistered") {
     const rogue = Wallet.createRandom();
     const rogueId = `ROGUE-${rogue.address.slice(2, 8).toUpperCase()}`;
     const rogueSim = new EdgeDeviceSimulator({ deviceId: rogueId, fieldId: device.fieldId, firmware: "6.6.6" });
     const signed = await signReading(rogue, conn.domain, rogueSim.generate().payload);
     console.log(`Submitting a reading signed by an unregistered device ${rogueId}:`);
-    await gateway.submit(signed, { onUpdate: report, forceBroadcast: opts["force-broadcast"] });
+    await gateway.submit(signed, { ...report, forceBroadcast: opts["force-broadcast"] });
   } else if (scenario === "forged") {
     const signed = await signReading(key, conn.domain, sim.generate().payload);
     const [id, r, nonce, signature] = toSubmitArgs(signed);
@@ -412,7 +421,7 @@ async function cmdAttack(): Promise<void> {
     console.log(`  revoked in tx ${tx.hash}`);
     console.log("\n2) The device tries to submit another reading:");
     const signed = await signReading(key, conn.domain, sim.generate().payload);
-    await gateway.submit(signed, { onUpdate: report, forceBroadcast: opts["force-broadcast"] });
+    await gateway.submit(signed, { ...report, forceBroadcast: opts["force-broadcast"] });
     const count = (await conn.contract.getFunction("getReadingCount")(toBytes32Id(device.deviceId))) as bigint;
     console.log(`\n3) Historical readings remain retrievable: getReadingCount = ${count}`);
   }

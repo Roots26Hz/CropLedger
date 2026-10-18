@@ -253,7 +253,9 @@ export function LiveFeedPage() {
                     {sim.feed.slice(0, 60).map((f) => {
                       const tx = f.txId ? txById.get(f.txId) : undefined;
                       const url = tx?.txHash && tx.chainId ? explorerTxUrl(tx.chainId, tx.txHash) : undefined;
-                      const retryable = tx && FAILURE_STAGES.includes(tx.stage) && tx.stage !== "rejected-preflight";
+                      // Unconfirmed may also be retried: if the first attempt did land, the
+                      // free preflight reports StaleNonce instead of sending twice.
+                      const retryable = tx && ((FAILURE_STAGES.includes(tx.stage) && tx.stage !== "rejected-preflight") || tx.stage === "unconfirmed");
                       return (
                         <tr key={f.id} className={cn(f.payload.anomalyLabel === "anomaly" && "bg-danger-50/40")}>
                           <td className="tabular px-5 py-2.5 text-xs text-ink-muted">
@@ -293,7 +295,14 @@ export function LiveFeedPage() {
                             {tx ? (
                               <div className="space-y-0.5">
                                 <StageBadge stage={tx.stage} local={tx.local} />
-                                {tx.error && <p className="max-w-56 text-[11px] leading-snug text-danger-600">{tx.error.message}</p>}
+                                {tx.error && (
+                                  <p className="max-w-56 text-[11px] leading-snug text-danger-600" title={tx.error.detail}>
+                                    {tx.error.message}
+                                  </p>
+                                )}
+                                {tx.error?.detail && tx.error.detail !== tx.error.message && (
+                                  <p className="max-w-56 font-mono text-[10px] leading-snug break-words text-ink-faint">{tx.error.detail}</p>
+                                )}
                                 {tx.blockNumber !== undefined && (
                                   <p className="tabular text-[11px] text-ink-faint">
                                     {tx.local ? "simulated block" : "block"} {tx.blockNumber}

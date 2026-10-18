@@ -6,15 +6,23 @@
  * Lifecycle reported through onUpdate:
  *   validating → preflight → awaiting-wallet → submitted (tx hash known)
  *             → confirmed (receipt received, block number + gas known)
- * or one of: rejected-preflight | wallet-rejected | reverted | failed.
+ * or one of: rejected-preflight | wallet-rejected | reverted | failed |
+ * unconfirmed (broadcast, but no receipt seen yet — it may still confirm).
  *
  * "submitted" means the transaction was accepted by the RPC node into the
  * mempool. It is only reported as "confirmed" after a receipt with
  * status 1 is available.
  */
-import { Contract, getAddress, type ContractRunner, type ContractTransactionResponse } from "ethers";
+import {
+  Contract,
+  getAddress,
+  type ContractRunner,
+  type ContractTransactionResponse,
+  type TransactionReceipt,
+} from "ethers";
 import { CROPLEDGER_ABI } from "./abi.js";
 import { decodeError, type DecodedError } from "./errors.js";
+import { formatGwei, type FeeOverrides } from "./fees.js";
 import { assertSupportedChain } from "./networks.js";
 import { canonicalize, hashCanonicalJson, validatePayload } from "./payload.js";
 import { messageFromPayload, recoverReadingSigner, toSubmitArgs } from "./signing.js";
@@ -29,7 +37,8 @@ export type SubmissionStage =
   | "rejected-preflight"
   | "wallet-rejected"
   | "reverted"
-  | "failed";
+  | "failed"
+  | "unconfirmed";
 
 export interface SubmissionUpdate {
   stage: SubmissionStage;
@@ -39,6 +48,8 @@ export interface SubmissionUpdate {
   gasUsed?: bigint;
   readingIndex?: number;
   error?: DecodedError;
+  /** Extra detail for the lifecycle view (e.g. the fee that was suggested). */
+  note?: string;
 }
 
 export interface SubmissionResult extends SubmissionUpdate {
@@ -52,6 +63,18 @@ export interface SubmitOptions {
   forcedGasLimit?: bigint;
   /** Number of confirmations to wait for (default 1). */
   confirmations?: number;
+  /**
+   * Explicit EIP-1559 fees to propose to the wallet (e.g. Polygon's minimum
+   * priority fee). Undefined → the wallet chooses.
+   */
+  fees?: () => Promise<FeeOverrides | undefined>;
+  /**
+   * Provider used to follow a transaction by hash when the wallet's own
+   * provider fails after broadcasting (e.g. the dashboard's read RPC).
+   */
+  receiptProvider?: ContractRunner["provider"];
+  /** How long to wait for a receipt when following by hash (default 3 min). */
+  receiptTimeoutMs?: number;
   onUpdate?: (update: SubmissionUpdate) => void;
 }
 
@@ -173,11 +196,34 @@ export async function sendTracked(
     }
   }
 
-  emit({ stage: "awaiting-wallet" });
+  // Propose fees the network will accept (the wallet may still adjust them).
+  const overrides: Record<string, unknown> = options.forceBroadcast ? { gasLimit: options.forcedGasLimit ?? 300_000n } : {};
+  let feeNote: string | undefined;
+  if (options.fees) {
+    try {
+      const fees = await options.fees();
+      if (fees) {
+        overrides.maxFeePerGas = fees.maxFeePerGas;
+        overrides.maxPriorityFeePerGas = fees.maxPriorityFeePerGas;
+        feeNote = `Suggested priority fee ${formatGwei(fees.maxPriorityFeePerGas)} (${fees.source})`;
+      }
+    } catch {
+      // Let the wallet choose.
+    }
+  }
+
+  emit({ stage: "awaiting-wallet", note: feeNote });
   let tx: ContractTransactionResponse;
   try {
-    tx = (await fn(...args, options.forceBroadcast ? { gasLimit: options.forcedGasLimit ?? 300_000n } : {})) as ContractTransactionResponse;
+    tx = (await fn(...args, overrides)) as ContractTransactionResponse;
   } catch (error) {
+    // ethers attaches the hash when the wallet broadcast the transaction but
+    // fetching it back failed; it may well be mined, so keep following it.
+    const sentHash = (error as { info?: { sendTransactionHash?: string } }).info?.sendTransactionHash;
+    if (sentHash) {
+      emit({ stage: "submitted", txHash: sentHash as Hex, note: "Broadcast by the wallet; following it by hash" });
+      return followByHash(contract, sentHash as Hex, options, finish, decodeError(error));
+    }
     const decoded = decodeError(error);
     // Without forceBroadcast the wallet's own gas estimation can surface a
     // contract rejection here; with it, the node refused to broadcast.
@@ -195,46 +241,88 @@ export async function sendTracked(
 
   try {
     const receipt = await tx.wait(options.confirmations ?? 1);
-    if (!receipt || receipt.status !== 1) {
-      const reason = await recoverRevertReason(contract, tx, receipt?.blockNumber);
-      return finish(
-        {
-          stage: "reverted",
-          txHash,
-          blockNumber: receipt?.blockNumber,
-          gasUsed: receipt?.gasUsed,
-          error: reason
-            ? { ...reason, message: `Mined but reverted (gas was spent). ${reason.message}` }
-            : { kind: "contract", message: "The transaction was mined but reverted." },
-        },
-        false,
-      );
-    }
-    let readingIndex: number | undefined;
-    for (const log of receipt.logs) {
-      try {
-        const parsed = contract.interface.parseLog(log);
-        if (parsed?.name === "ReadingRecorded") readingIndex = Number(parsed.args.getValue("index"));
-      } catch {
-        // Not a CropLedger event.
-      }
-    }
-    return finish({ stage: "confirmed", txHash, blockNumber: receipt.blockNumber, gasUsed: receipt.gasUsed, readingIndex }, true);
+    if (!receipt) return followByHash(contract, txHash, options, finish);
+    return settle(contract, receipt, tx, finish);
   } catch (error) {
     // ethers throws CALL_EXCEPTION for receipts with status 0.
-    const receipt = (error as { receipt?: { blockNumber?: number; gasUsed?: bigint } }).receipt;
-    const decoded = (receipt ? await recoverRevertReason(contract, tx, receipt.blockNumber) : null) ?? decodeError(error);
+    const receipt = (error as { receipt?: TransactionReceipt }).receipt;
+    if (receipt) return settle(contract, receipt, tx, finish);
+    // No receipt: the wallet's provider failed while waiting. The
+    // transaction may still confirm, so ask another provider before giving up.
+    return followByHash(contract, txHash, options, finish, decodeError(error));
+  }
+}
+
+type Finish = (update: Omit<SubmissionUpdate, "at">, ok: boolean) => SubmissionResult;
+
+/** Turn a receipt into a confirmed or reverted result. */
+async function settle(
+  contract: Contract,
+  receipt: TransactionReceipt,
+  tx: { to?: string | null; from?: string; data?: string; value?: bigint } | null,
+  finish: Finish,
+): Promise<SubmissionResult> {
+  const txHash = receipt.hash as Hex;
+  if (receipt.status !== 1) {
+    const reason = tx ? await recoverRevertReason(contract, tx, receipt.blockNumber) : null;
     return finish(
       {
-        stage: receipt ? "reverted" : "failed",
+        stage: "reverted",
         txHash,
-        blockNumber: receipt?.blockNumber,
-        gasUsed: receipt?.gasUsed,
-        error: receipt ? { ...decoded, message: `Mined but reverted (gas was spent). ${decoded.message}` } : decoded,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed,
+        error: reason
+          ? { ...reason, message: `Mined but reverted (gas was spent). ${reason.message}` }
+          : { kind: "contract", message: "The transaction was mined but reverted." },
       },
       false,
     );
   }
+  let readingIndex: number | undefined;
+  for (const log of receipt.logs) {
+    try {
+      const parsed = contract.interface.parseLog(log);
+      if (parsed?.name === "ReadingRecorded") readingIndex = Number(parsed.args.getValue("index"));
+    } catch {
+      // Not a CropLedger event.
+    }
+  }
+  return finish({ stage: "confirmed", txHash, blockNumber: receipt.blockNumber, gasUsed: receipt.gasUsed, readingIndex }, true);
+}
+
+/** Wait for a receipt by hash on a (preferably independent) provider. */
+async function followByHash(
+  contract: Contract,
+  txHash: Hex,
+  options: SubmitOptions,
+  finish: Finish,
+  cause?: DecodedError,
+): Promise<SubmissionResult> {
+  const provider = options.receiptProvider ?? contract.runner?.provider;
+  if (provider) {
+    try {
+      const receipt = await provider.waitForTransaction(txHash, options.confirmations ?? 1, options.receiptTimeoutMs ?? 180_000);
+      if (receipt) {
+        const tx = await provider.getTransaction(txHash).catch(() => null);
+        return settle(contract, receipt, tx, finish);
+      }
+    } catch {
+      // Timed out or provider failure: report as unconfirmed below.
+    }
+  }
+  return finish(
+    {
+      stage: "unconfirmed",
+      txHash,
+      error: {
+        kind: "rpc",
+        message:
+          "The wallet broadcast this transaction, but no receipt was seen yet. It may still confirm: open it on the block explorer before resubmitting.",
+        detail: cause?.detail ?? cause?.message,
+      },
+    },
+    false,
+  );
 }
 
 /**
@@ -245,7 +333,7 @@ export async function sendTracked(
  */
 async function recoverRevertReason(
   contract: Contract,
-  tx: ContractTransactionResponse,
+  tx: { to?: string | null; from?: string; data?: string; value?: bigint },
   blockNumber: number | undefined,
 ): Promise<DecodedError | null> {
   const provider = contract.runner?.provider;
