@@ -1,0 +1,54 @@
+name: CI
+
+# Ordinary validation only: local Hardhat tests, unit tests, type checks,
+# lint and the frontend build. No secrets, wallets, testnet RPCs or
+# deployed contracts are needed.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    name: Test, type-check, lint and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js (version from .nvmrc)
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies (root + frontend workspace)
+        run: npm ci
+
+      - name: Compile contract and check the committed ABI
+        run: npm run abi:check
+
+      - name: Smart-contract, gateway and parity tests (Hardhat)
+        run: npm run test:contracts
+
+      - name: Unit tests (Vitest)
+        run: npm run test:unit
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Frontend production build
+        run: npm run build
