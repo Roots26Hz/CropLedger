@@ -1,0 +1,81 @@
+# ---------------------------------------------------------------
+# CropLedger .gitignore
+# Never commit secrets: .env files, private keys, keystores, seed
+# phrases or simulated device key stores.
+# ---------------------------------------------------------------
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment files (only the placeholder template is tracked)
+.env
+.env.*
+!.env.example
+
+# Hardhat
+cache/
+artifacts/
+# Generated contract typings (anchored so frontend/src/types is kept)
+/types/
+/typechain-types/
+ignition/deployments/chain-31337/
+coverage/
+coverage.json
+
+# Local deployment records and simulator state (contain device keys)
+deployments/
+.simulator/
+simulator-data/
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+*.tsbuildinfo
+frontend/dist/
+
+# Report build environment
+report/.venv/
+report/__pycache__/
+__pycache__/
+*.pyc
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test and tool caches
+.vitest/
+.eslintcache
+.cache/
+.temp/
+tmp/
+*.tmp
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors and IDEs
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+*.sublime-workspace
+
+# Remix local workspace artefacts (if remixd is used)
+.deps/
+.states/
+
+# Key material that must never be committed
+*.pem
+*.key
+keystore*.json
