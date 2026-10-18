@@ -82,3 +82,6 @@ keystore*.json
 
 # Local AI-assistant tooling
 .claude/
+
+# Generated single-file contract for Remix (npm run flatten)
+*.flat.sol
