@@ -13,6 +13,8 @@ export type ErrorKind =
   | "wallet-missing" // no injected wallet available
   | "wrong-network"
   | "insufficient-funds"
+  | "fee-too-low" // the node refused the signed transaction's gas fee
+  | "nonce-conflict" // the account's transaction nonce is out of sync
   | "rpc" // network / provider failure
   | "validation" // bad input caught before sending
   | "unknown";
@@ -113,6 +115,34 @@ function shortMessage(err: unknown): string {
   return String(err);
 }
 
+/** Wrapper messages that say nothing about the actual cause. */
+const GENERIC_MESSAGE = /^(internal json-rpc error\.?|could not coalesce error|unknown error|missing revert data|execution reverted\.?)$/i;
+
+/**
+ * Collect every message nested inside an error (ethers wraps MetaMask, which
+ * wraps the node's own error), most specific last.
+ */
+function nestedMessages(err: unknown, depth = 0, out: string[] = []): string[] {
+  if (!err || typeof err !== "object" || depth > 6) return out;
+  const e = err as Record<string, unknown>;
+  for (const key of ["shortMessage", "message"] as const) {
+    const value = e[key];
+    if (typeof value === "string" && value.trim()) out.push(value.split("\n")[0]!.slice(0, 400));
+  }
+  for (const key of ["error", "info", "data", "originalError", "cause", "payload"] as const) {
+    if (e[key] && typeof e[key] === "object") nestedMessages(e[key], depth + 1, out);
+  }
+  return out;
+}
+
+/** The most specific human-readable cause inside an error. */
+function specificMessage(err: unknown): string {
+  const messages = nestedMessages(err)
+    .map((m) => m.replace(/\s*\(.*$/s, "").trim())
+    .filter((m) => m && !GENERIC_MESSAGE.test(m));
+  return messages.at(-1) ?? shortMessage(err);
+}
+
 /** Decode any error from ethers, MetaMask, the LocalLedger or our own checks. */
 export function decodeError(err: unknown): DecodedError {
   if (err instanceof LedgerRuleError) {
@@ -148,8 +178,35 @@ export function decodeError(err: unknown): DecodedError {
   if (findCode(err) === -32002) {
     return { kind: "wallet-pending", message: "A wallet request is already open. Open MetaMask to approve or reject it.", detail: shortMessage(err) };
   }
-  if (isError(err, "INSUFFICIENT_FUNDS")) {
-    return { kind: "insufficient-funds", message: "The sending account does not have enough test tokens to pay for gas. Use a faucet first.", detail: shortMessage(err) };
+  // Node-level rejections that wallets report as generic "Internal JSON-RPC
+  // error" — look inside for the node's actual message.
+  const all = nestedMessages(err).join(" | ");
+  const detail = specificMessage(err);
+  if (/replacement transaction underpriced|nonce too low|nonce has already been used|nonce too high/i.test(all)) {
+    return {
+      kind: "nonce-conflict",
+      message:
+        "The wallet's transaction counter (nonce) is out of sync with the network, e.g. after an earlier stuck transaction or a restarted local chain. In MetaMask use Settings → Advanced → Clear activity tab data, then try again.",
+      detail,
+    };
+  }
+  if (/underpriced|gas tip cap|minimum needed|max fee per gas less than block base fee|fee cap less than block base fee|maxFeePerGas.*too low/i.test(all)) {
+    return {
+      kind: "fee-too-low",
+      message:
+        "The network refused the transaction because its gas fee was too low. Polygon requires a priority fee (tip) of at least 25 gwei; if you edit the fee in MetaMask, keep it at or above that.",
+      detail,
+    };
+  }
+  if (isError(err, "INSUFFICIENT_FUNDS") || /insufficient funds/i.test(all)) {
+    return { kind: "insufficient-funds", message: "The sending account does not have enough test tokens to pay for gas. Use a faucet first.", detail };
+  }
+  if (/\b429\b|too many requests|rate limit|request limit|exceeded/i.test(all)) {
+    return {
+      kind: "rpc",
+      message: "The RPC endpoint is rate-limiting requests. Wait a few seconds and retry, or choose another Amoy RPC (System Configuration, or the network settings in MetaMask).",
+      detail,
+    };
   }
   if (isError(err, "CALL_EXCEPTION")) {
     return { kind: "contract", message: "The transaction reverted on-chain without a decodable reason.", detail: shortMessage(err) };
@@ -163,7 +220,7 @@ export function decodeError(err: unknown): DecodedError {
     return { kind: "rpc", message: "Could not reach the blockchain RPC endpoint. Check your connection or RPC URL.", detail: shortMessage(err) };
   }
   if (isError(err, "INVALID_ARGUMENT") || isError(err, "BAD_DATA")) {
-    return { kind: "validation", message: shortMessage(err), detail: shortMessage(err) };
+    return { kind: "validation", message: detail, detail };
   }
-  return { kind: "unknown", message: shortMessage(err) };
+  return { kind: "unknown", message: detail, detail: shortMessage(err) !== detail ? shortMessage(err) : undefined };
 }

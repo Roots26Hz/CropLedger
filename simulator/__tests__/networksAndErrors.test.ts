@@ -90,6 +90,35 @@ describe("error decoding", () => {
     expect(decodeError({ error: { code: -32002 } }).kind).toBe("wallet-pending");
   });
 
+  it("explains MetaMask's generic error when the node refused an underpriced transaction", () => {
+    // Shape produced by ethers' BrowserProvider for MetaMask's -32603 error.
+    const err = makeError("could not coalesce error", "UNKNOWN_ERROR", {
+      error: {
+        code: -32603,
+        message: "Internal JSON-RPC error.",
+        data: { code: -32000, message: "transaction underpriced: gas tip cap 1500000000, minimum needed 25000000000" },
+      },
+    });
+    const decoded = decodeError(err);
+    expect(decoded.kind).toBe("fee-too-low");
+    expect(decoded.message).toMatch(/25 gwei/);
+    expect(decoded.detail).toBe("transaction underpriced: gas tip cap 1500000000, minimum needed 25000000000");
+  });
+
+  it("recognises nonce conflicts and rate limits inside wallet errors", () => {
+    expect(decodeError({ code: -32603, message: "Internal JSON-RPC error.", data: { message: "nonce too low" } }).kind).toBe("nonce-conflict");
+    const limited = decodeError({ code: -32603, message: "Internal JSON-RPC error.", data: { message: "429 Too Many Requests" } });
+    expect(limited.kind).toBe("rpc");
+    expect(limited.message).toMatch(/rate-limiting/);
+  });
+
+  it("shows the innermost specific message for unknown wallet errors", () => {
+    const err = makeError("could not coalesce error", "UNKNOWN_ERROR", {
+      error: { code: -32603, message: "Internal JSON-RPC error.", data: { message: "something specific went wrong" } },
+    });
+    expect(decodeError(err).message).toBe("something specific went wrong");
+  });
+
   it("recognises RPC failures", () => {
     expect(decodeError(makeError("could not detect network", "NETWORK_ERROR", { event: "noNetwork" })).kind).toBe("rpc");
     expect(decodeError(new TypeError("Failed to fetch")).kind).toBe("rpc");

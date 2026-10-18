@@ -49,6 +49,15 @@ function TxRow({ t }: { t: TxRecord }) {
           {t.label}
         </p>
         {t.error && <p className="mt-1 max-w-md text-xs leading-snug text-danger-600">{t.error.message}</p>}
+        {t.error?.detail && t.error.detail !== t.error.message && (
+          <details className="mt-1 max-w-md text-[11px] text-ink-faint">
+            <summary className="cursor-pointer select-none">Technical detail</summary>
+            <p className="mt-1 font-mono break-words">{t.error.detail}</p>
+          </details>
+        )}
+        {t.stages.find((x) => x.note?.startsWith("Suggested priority fee"))?.note && (
+          <p className="mt-1 text-[11px] text-ink-faint">{t.stages.find((x) => x.note?.startsWith("Suggested priority fee"))!.note}</p>
+        )}
       </td>
       <td className="px-3 py-3">
         <StageBadge stage={t.stage} local={t.local} />
