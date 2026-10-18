@@ -1,43 +1,72 @@
-import { LayoutDashboard, Menu } from "lucide-react";
 import { useState } from "react";
-import { PageHeader } from "./components/layout/PageHeader";
-import { Sidebar, type NavItem } from "./components/layout/Sidebar";
-import { Badge } from "./components/ui/Badge";
-import { Card, CardBody, CardHeader } from "./components/ui/Card";
-import { ENV, maskRpcUrl } from "./config/env";
+import { ModeBanner } from "./components/layout/ModeBanner";
+import { Sidebar } from "./components/layout/Sidebar";
+import { TopBar } from "./components/layout/TopBar";
 import { useHashRoute } from "./hooks/useHashRoute";
+import { PAGES } from "./pages/registry";
+import { LedgerProvider } from "./state/LedgerContext";
+import { SettingsProvider, useSettings } from "./state/SettingsContext";
+import { SimulatorProvider } from "./state/SimulatorContext";
+import { ToastProvider } from "./state/ToastContext";
+import { WalletProvider } from "./state/WalletContext";
+import { RouteContext } from "./hooks/useRoute";
+import { shortHex } from "./utils/format";
 
-const NAV: NavItem[] = [{ key: "overview", label: "Overview", icon: <LayoutDashboard className="size-4" />, group: "Monitor" }];
+function SidebarFooter() {
+  const { settings, networkConfigured } = useSettings();
+  return (
+    <div className="space-y-1 text-[11px] text-forest-200/80">
+      <p className="font-medium text-forest-100">{settings.mode === "local" ? "Local demonstration" : "Network mode"}</p>
+      {settings.mode === "network" && <p className="font-mono">{networkConfigured ? shortHex(settings.contractAddress, 6) : "contract not set"}</p>}
+      <p className="text-forest-300/60">Integrity &amp; attribution, not sensor accuracy.</p>
+    </div>
+  );
+}
 
-export function App() {
-  const { route, navigate } = useHashRoute();
+function Shell() {
+  const routing = useHashRoute();
+  const { route, navigate } = routing;
   const [menuOpen, setMenuOpen] = useState(false);
-  const configured = Boolean(ENV.chainId && ENV.contractAddress);
+  const page = PAGES.find((p) => p.key === route.path) ?? PAGES[0]!;
+  const Page = page.component;
 
   return (
-    <div className="min-h-screen">
-      <Sidebar items={NAV} active={route.path} onNavigate={(k) => navigate(k)} open={menuOpen} onClose={() => setMenuOpen(false)} />
-      <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line bg-paper/90 px-4 backdrop-blur sm:px-6">
-          <button type="button" className="rounded p-1.5 hover:bg-black/5 lg:hidden" onClick={() => setMenuOpen(true)} aria-label="Open menu">
-            <Menu className="size-5" />
-          </button>
-          <Badge tone={configured ? "info" : "local"} dot>
-            {configured ? "Network configuration detected" : "Local demonstration mode"}
-          </Badge>
-        </header>
-        <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
-          <PageHeader title="Overview" description="CropLedger dashboard scaffold." />
-          <Card>
-            <CardHeader title="Configuration" subtitle="Values read from the public VITE_* environment variables." />
-            <CardBody className="space-y-1 text-sm">
-              <p>Chain ID: {ENV.chainId ?? "not set"}</p>
-              <p>Contract: {ENV.contractAddress ?? "not set"}</p>
-              <p>RPC: {ENV.rpcUrl ? maskRpcUrl(ENV.rpcUrl) : "not set"}</p>
-            </CardBody>
-          </Card>
-        </main>
+    <RouteContext.Provider value={routing}>
+      <div className="min-h-screen">
+        <Sidebar
+          items={PAGES}
+          active={page.key}
+          onNavigate={(key) => navigate(key)}
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          footer={<SidebarFooter />}
+        />
+        <div className="lg:pl-64">
+          <TopBar onMenu={() => setMenuOpen(true)} />
+          <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
+            {page.key !== "config" && <ModeBanner onConfigure={() => navigate("config")} />}
+            <div key={page.key} className="animate-fade-in">
+              <Page />
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    </RouteContext.Provider>
+  );
+}
+
+export function App() {
+  return (
+    <ToastProvider>
+      <SettingsProvider>
+        <WalletProvider>
+          <LedgerProvider>
+            <SimulatorProvider>
+              <Shell />
+            </SimulatorProvider>
+          </LedgerProvider>
+        </WalletProvider>
+      </SettingsProvider>
+    </ToastProvider>
   );
 }

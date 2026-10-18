@@ -126,98 +126,110 @@ export class Gateway {
 
   /** Validate, preflight, broadcast and confirm one signed reading. */
   async submit(signed: SignedReading, options: SubmitOptions = {}): Promise<SubmissionResult> {
-    const emit = (update: Omit<SubmissionUpdate, "at">) => {
-      const full = { ...update, at: Date.now() };
-      options.onUpdate?.(full);
-      return full;
-    };
-    const finish = (update: Omit<SubmissionUpdate, "at">, ok: boolean): SubmissionResult => ({ ...emit(update), ok });
-
-    emit({ stage: "validating" });
+    options.onUpdate?.({ stage: "validating", at: Date.now() });
     try {
       validateSignedReading(signed, this.domain);
     } catch (error) {
-      return finish({ stage: "failed", error: { kind: "validation", message: (error as Error).message } }, false);
+      const result: SubmissionResult = {
+        ok: false,
+        stage: "failed",
+        at: Date.now(),
+        error: { kind: "validation", message: (error as Error).message },
+      };
+      options.onUpdate?.(result);
+      return result;
     }
+    return sendTracked(this.contract, "submitReading", toSubmitArgs(signed), options);
+  }
+}
 
-    const args = toSubmitArgs(signed);
+/**
+ * Preflight, broadcast and confirm any CropLedger write, reporting each
+ * lifecycle stage. Used for readings (via Gateway) and for registry actions.
+ */
+export async function sendTracked(
+  contract: Contract,
+  functionName: string,
+  args: readonly unknown[],
+  options: SubmitOptions = {},
+): Promise<SubmissionResult> {
+  const emit = (update: Omit<SubmissionUpdate, "at">) => {
+    const full = { ...update, at: Date.now() };
+    options.onUpdate?.(full);
+    return full;
+  };
+  const finish = (update: Omit<SubmissionUpdate, "at">, ok: boolean): SubmissionResult => ({ ...emit(update), ok });
+  const fn = contract.getFunction(functionName);
 
-    // Preflight: simulate the call so contract rejections are reported
-    // before the user is asked to pay gas.
-    if (!options.forceBroadcast) {
-      emit({ stage: "preflight" });
-      try {
-        await this.contract.getFunction("submitReading").staticCall(...args);
-      } catch (error) {
-        const decoded = decodeError(error);
-        return finish({ stage: decoded.kind === "contract" ? "rejected-preflight" : "failed", error: decoded }, false);
-      }
-    }
-
-    emit({ stage: "awaiting-wallet" });
-    let tx: ContractTransactionResponse;
+  // Preflight: simulate the call so contract rejections are reported
+  // before the user is asked to pay gas.
+  if (!options.forceBroadcast) {
+    emit({ stage: "preflight" });
     try {
-      tx = (await this.contract.getFunction("submitReading")(
-        ...args,
-        options.forceBroadcast ? { gasLimit: options.forcedGasLimit ?? 300_000n } : {},
-      )) as ContractTransactionResponse;
+      await fn.staticCall(...args);
     } catch (error) {
       const decoded = decodeError(error);
-      // Without forceBroadcast the wallet's own gas estimation can surface a
-      // contract rejection here; with it, the node refused to broadcast.
-      const stage: SubmissionStage =
-        decoded.kind === "wallet-rejected"
-          ? "wallet-rejected"
-          : decoded.kind === "contract" && !options.forceBroadcast
-            ? "rejected-preflight"
-            : "failed";
-      return finish({ stage, error: decoded }, false);
+      return finish({ stage: decoded.kind === "contract" ? "rejected-preflight" : "failed", error: decoded }, false);
     }
+  }
 
-    const txHash = tx.hash as Hex;
-    emit({ stage: "submitted", txHash });
+  emit({ stage: "awaiting-wallet" });
+  let tx: ContractTransactionResponse;
+  try {
+    tx = (await fn(...args, options.forceBroadcast ? { gasLimit: options.forcedGasLimit ?? 300_000n } : {})) as ContractTransactionResponse;
+  } catch (error) {
+    const decoded = decodeError(error);
+    // Without forceBroadcast the wallet's own gas estimation can surface a
+    // contract rejection here; with it, the node refused to broadcast.
+    const stage: SubmissionStage =
+      decoded.kind === "wallet-rejected"
+        ? "wallet-rejected"
+        : decoded.kind === "contract" && !options.forceBroadcast
+          ? "rejected-preflight"
+          : "failed";
+    return finish({ stage, error: decoded }, false);
+  }
 
-    try {
-      const receipt = await tx.wait(options.confirmations ?? 1);
-      if (!receipt || receipt.status !== 1) {
-        return finish(
-          {
-            stage: "reverted",
-            txHash,
-            blockNumber: receipt?.blockNumber,
-            gasUsed: receipt?.gasUsed,
-            error: { kind: "contract", message: "The transaction was mined but reverted." },
-          },
-          false,
-        );
-      }
-      let readingIndex: number | undefined;
-      for (const log of receipt.logs) {
-        try {
-          const parsed = this.contract.interface.parseLog(log);
-          if (parsed?.name === "ReadingRecorded") readingIndex = Number(parsed.args.getValue("index"));
-        } catch {
-          // Not a CropLedger event.
-        }
-      }
-      return finish(
-        { stage: "confirmed", txHash, blockNumber: receipt.blockNumber, gasUsed: receipt.gasUsed, readingIndex },
-        true,
-      );
-    } catch (error) {
-      // ethers throws CALL_EXCEPTION for receipts with status 0.
-      const receipt = (error as { receipt?: { blockNumber?: number; gasUsed?: bigint } }).receipt;
-      const decoded = decodeError(error);
+  const txHash = tx.hash as Hex;
+  emit({ stage: "submitted", txHash });
+
+  try {
+    const receipt = await tx.wait(options.confirmations ?? 1);
+    if (!receipt || receipt.status !== 1) {
       return finish(
         {
-          stage: receipt ? "reverted" : "failed",
+          stage: "reverted",
           txHash,
           blockNumber: receipt?.blockNumber,
           gasUsed: receipt?.gasUsed,
-          error: receipt ? { ...decoded, message: `Mined but reverted. ${decoded.message}` } : decoded,
+          error: { kind: "contract", message: "The transaction was mined but reverted." },
         },
         false,
       );
     }
+    let readingIndex: number | undefined;
+    for (const log of receipt.logs) {
+      try {
+        const parsed = contract.interface.parseLog(log);
+        if (parsed?.name === "ReadingRecorded") readingIndex = Number(parsed.args.getValue("index"));
+      } catch {
+        // Not a CropLedger event.
+      }
+    }
+    return finish({ stage: "confirmed", txHash, blockNumber: receipt.blockNumber, gasUsed: receipt.gasUsed, readingIndex }, true);
+  } catch (error) {
+    // ethers throws CALL_EXCEPTION for receipts with status 0.
+    const receipt = (error as { receipt?: { blockNumber?: number; gasUsed?: bigint } }).receipt;
+    const decoded = decodeError(error);
+    return finish(
+      {
+        stage: receipt ? "reverted" : "failed",
+        txHash,
+        blockNumber: receipt?.blockNumber,
+        gasUsed: receipt?.gasUsed,
+        error: receipt ? { ...decoded, message: `Mined but reverted. ${decoded.message}` } : decoded,
+      },
+      false,
+    );
   }
 }

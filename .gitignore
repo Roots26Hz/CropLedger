@@ -79,3 +79,6 @@ desktop.ini
 *.pem
 *.key
 keystore*.json
+
+# Local AI-assistant tooling
+.claude/
