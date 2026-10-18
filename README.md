@@ -369,6 +369,14 @@ Read [docs/SECURITY.md](docs/SECURITY.md) for the full threat model and trust as
 
 There is no PowerPoint: the project is presented live from Remix and the dashboard.
 
+Rebuild the synopsis PDF after editing `report/REPORT.md` (the script fails if it exceeds 5 pages):
+
+```bash
+python3 -m venv report/.venv
+report/.venv/bin/pip install -r report/requirements.txt
+report/.venv/bin/python report/build_report.py
+```
+
 ## Screenshots
 
 These are real captures of the running application, nine of them against a local Hardhat chain:
