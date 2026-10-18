@@ -267,6 +267,10 @@ A reading must be **signed by the device key** with EIP-712 for this exact chain
 
 Live Sensor Feed → *One reading* (the device signs) → *Submit* → MetaMask confirms `submitReading`. The feed row moves through *Preflight → Awaiting wallet → Pending → Confirmed* and shows the block number and an Amoy explorer link.
 
+**About the fee in the MetaMask pop-up.** Polygon refuses any transaction whose *priority fee* (tip) is below **25 gwei**, even on Amoy, and it does so only *after* you confirm in MetaMask. Wallets estimate the tip from recent blocks, and Amoy's many empty blocks can push that estimate below the minimum. The dashboard therefore proposes its own fee (Polygon's gas station value, never below 30 gwei); MetaMask shows it as **"Site suggested"** — leave it as it is. If you edit the fee in MetaMask, keep the priority fee at 25 gwei or more. One reading costs roughly 100–135 thousand gas, i.e. about 0.003–0.004 POL at 30 gwei.
+
+If a submission still fails, the feed row and the Transactions page now show the reason in plain language plus the node's exact message (*Technical detail*), and the row offers **Retry** for the same signed reading.
+
 ### Option B — Remix, with CLI-generated arguments
 
 ```bash
@@ -338,6 +342,9 @@ Remix decodes custom errors because they are part of the ABI. The dashboard's **
 | Compiler error about pragma | Select compiler `0.8.24` or newer (recommended `0.8.34`). |
 | Remix shows another network | Switch MetaMask to Amoy; reselect *Injected Provider – MetaMask*. |
 | *insufficient funds* | Get test POL from a faucet ([step 4.3](#43-get-test-pol)); wait for it to arrive. |
+| Reading shows **Failed** right after you confirm in MetaMask — *"gas fee was too low"* / *transaction underpriced … minimum needed 25000000000* | Polygon's 25 gwei minimum priority fee. Update the project (`git pull`) so the dashboard proposes a compliant fee, keep MetaMask's *Site suggested* fee, then press **Retry** on the row. |
+| **Failed** with *nonce … out of sync* | MetaMask's transaction counter disagrees with the chain (stuck earlier transaction, or a restarted local chain). MetaMask → Settings → Advanced → **Clear activity tab data**, then Retry. |
+| **Unconfirmed** | MetaMask broadcast the transaction but no receipt was seen yet. Open the *Tx* link on the explorer: if it succeeded, the reading is recorded (Evidence Explorer shows it); if it was dropped, press Retry — the free preflight prevents a duplicate. |
 | MetaMask *Could not fetch chain ID* when adding Amoy | The RPC is down or retired; use `https://polygon-amoy.drpc.org` ([step 4.2](#42-method-b--add-it-manually-in-metamask)). |
 | `OwnableUnauthorizedAccount` | Only the `initialOwner` account can register or revoke devices. |
 | `InvalidSignature` for a fresh reading | The arguments were signed for another contract or chain. Re-run `remix-args` with the right `--contract` and `--chain-id 80002`. |

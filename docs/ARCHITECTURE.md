@@ -141,7 +141,9 @@ sequenceDiagram
     C-->>U: true or false
 ```
 
-The gateway reports `submitted` when the RPC accepts the transaction and `confirmed` **only** when a receipt with status 1 is available. Mined-but-reverted transactions are reported as `reverted`; the gateway then re-simulates the call at the previous block to recover the custom error, since receipts carry no revert data.
+The gateway reports `submitted` when the RPC accepts the transaction and `confirmed` **only** when a receipt with status 1 is available. Mined-but-reverted transactions are reported as `reverted`; the gateway then re-simulates the call at the previous block to recover the custom error, since receipts carry no revert data. If the wallet broadcast a transaction but its provider fails afterwards, the gateway keeps following the hash on the dashboard's own read RPC; with no receipt after three minutes it reports `unconfirmed` (not `failed`).
+
+**Fees on Polygon.** Polygon PoS nodes reject any transaction whose priority fee is below 25 gwei. On Amoy the base fee is near zero and many blocks are empty, so wallet fee estimators can propose too little. For networks with a fee policy ([`simulator/networks.ts`](../simulator/networks.ts)) the gateway proposes explicit EIP-1559 fees from [`simulator/fees.ts`](../simulator/fees.ts): Polygon's gas station tip (else the RPC suggestion), never below the floor + 20 % and never above 8 × the floor. MetaMask shows these as "site suggested".
 
 ## 6. Dashboard modes
 
