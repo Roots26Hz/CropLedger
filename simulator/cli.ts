@@ -353,8 +353,8 @@ async function cmdRemixArgs(): Promise<void> {
   console.log(`  r:         [${r.timestamp}, ${r.n}, ${r.p}, ${r.k}, "${r.payloadHash}"]`);
   console.log(`  nonce:     ${nonce}`);
   console.log(`  signature: ${signature}\n`);
-  console.log("Submit within 15 minutes of the reading timestamp is not required, but the timestamp");
-  console.log("must not be more than 15 minutes ahead of the block time.\n");
+  console.log("Note: the contract rejects a timestamp more than 15 minutes ahead of the block time;");
+  console.log("older readings are accepted. Each nonce can be recorded only once.\n");
   console.log("verifyReading after it is recorded (index = getReadingCount - 1):");
   console.log(`  genuine payloadHash  → true : ${signed.payloadHash}`);
   console.log(`  tampered (N + 1)     → false: ${tampered}\n`);

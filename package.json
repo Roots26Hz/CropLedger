@@ -17,7 +17,9 @@
     "export-abi": "hardhat build && tsx scripts/export-abi.ts",
     "test:unit": "vitest run",
     "test": "npm run test:contracts && npm run test:unit",
-    "sim": "tsx simulator/cli.ts"
+    "sim": "tsx simulator/cli.ts",
+    "deploy:local": "hardhat run scripts/deploy-local.ts",
+    "deploy:amoy": "hardhat run scripts/deploy-testnet.ts"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "4.2.1",
