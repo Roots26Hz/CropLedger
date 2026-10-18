@@ -13,7 +13,8 @@
     "compile": "hardhat build",
     "test:contracts": "hardhat test mocha",
     "node": "hardhat node",
-    "typecheck:root": "hardhat build && tsc -p tsconfig.json"
+    "typecheck:root": "hardhat build && tsc -p tsconfig.json",
+    "export-abi": "hardhat build && tsx scripts/export-abi.ts"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "4.2.1",
