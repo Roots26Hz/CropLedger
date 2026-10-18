@@ -15,10 +15,13 @@
     "node": "hardhat node",
     "typecheck:root": "hardhat build && tsc -p tsconfig.json",
     "export-abi": "hardhat build && tsx scripts/export-abi.ts",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run",
+    "test": "npm run test:contracts && npm run test:unit"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "4.2.1",
+    "@nomicfoundation/hardhat-ethers-chai-matchers": "3.0.13",
+    "@nomicfoundation/hardhat-network-helpers": "3.0.12",
     "@nomicfoundation/hardhat-toolbox-mocha-ethers": "4.0.0",
     "@types/chai": "5.2.3",
     "@types/chai-as-promised": "8.0.2",
