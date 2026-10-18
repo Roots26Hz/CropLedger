@@ -60,7 +60,7 @@ TITLE = ParagraphStyle("title", fontName="Helvetica-Bold", fontSize=16, leading=
 SUBTITLE = ParagraphStyle("subtitle", parent=BODY, fontName="Helvetica", fontSize=9.5, leading=12.5, alignment=TA_CENTER, textColor=MUTED, spaceAfter=1)
 H1 = ParagraphStyle("h1", fontName="Helvetica-Bold", fontSize=11.5, leading=14, textColor=FOREST, spaceBefore=8, spaceAfter=4)
 H2 = ParagraphStyle("h2", fontName="Helvetica-Bold", fontSize=10.3, leading=13, textColor=INK, spaceBefore=4, spaceAfter=2)
-LIST = ParagraphStyle("list", parent=BODY, alignment=TA_LEFT, spaceAfter=2.5)
+LIST = ParagraphStyle("list", parent=BODY, alignment=TA_LEFT, spaceAfter=1.5)
 CELL = ParagraphStyle("cell", fontName="Times-Roman", fontSize=9, leading=11, textColor=INK)
 CELL_HEAD = ParagraphStyle("cellhead", fontName="Helvetica-Bold", fontSize=8.6, leading=10.5, textColor=colors.white)
 CAPTION = ParagraphStyle("caption", parent=BODY, fontName="Helvetica-Oblique", fontSize=8.6, leading=11, alignment=TA_CENTER, textColor=MUTED, spaceBefore=2, spaceAfter=6)
@@ -170,7 +170,7 @@ def parse(markdown: str, width: float) -> list:
             in_front_matter = False
             # Avoid a heading stranded at the bottom of a page, without
             # forcing the following (splittable) paragraph to move with it.
-            story.append(CondPageBreak(3 * cm))
+            story.append(CondPageBreak(2.2 * cm))
             story.append(Paragraph(inline(line[3:]), H1))
             i += 1
             continue
@@ -187,7 +187,7 @@ def parse(markdown: str, width: float) -> list:
         if image:
             path = (HERE.parent / image.group(1)).resolve()
             img = Image(str(path))
-            scale = (width * 0.74) / img.imageWidth
+            scale = (width * 0.58) / img.imageWidth
             img.drawWidth, img.drawHeight = img.imageWidth * scale, img.imageHeight * scale
             story.append(KeepTogether([img, Paragraph(inline(image.group(2)), CAPTION)]))
             i += 1
@@ -199,7 +199,9 @@ def parse(markdown: str, width: float) -> list:
                 if not all(re.fullmatch(r":?-{3,}:?", c) for c in cells):
                     rows.append(cells)
                 i += 1
-            story.append(KeepTogether([make_table(rows, column_widths(rows, width)), Spacer(1, 6)]))
+            # Tables may split across pages; the header row repeats.
+            story.append(make_table(rows, column_widths(rows, width)))
+            story.append(Spacer(1, 6))
             continue
         bullet = re.match(r"^- (.*)", line)
         numbered = re.match(r"^\d+\. (.*)", line)

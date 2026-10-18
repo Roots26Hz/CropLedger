@@ -143,6 +143,8 @@ sequenceDiagram
 
 The gateway reports `submitted` when the RPC accepts the transaction and `confirmed` **only** when a receipt with status 1 is available. Mined-but-reverted transactions are reported as `reverted`; the gateway then re-simulates the call at the previous block to recover the custom error, since receipts carry no revert data. If the wallet broadcast a transaction but its provider fails afterwards, the gateway keeps following the hash on the dashboard's own read RPC; with no receipt after three minutes it reports `unconfirmed` (not `failed`).
 
+**Checks before the wallet opens.** In the dashboard the gateway runs the preflight `eth_call`, the gas estimate and a balance check on the dashboard's own read RPC, from the user's address, then hands the wallet an explicit gas limit (estimate + 20 %). An account that cannot cover gas limit × fee cap is stopped with the amounts shown. Otherwise a Polygon node would refuse the wallet's own estimate with "gas required exceeds allowance", which ethers reports as a data-less call exception. The read RPC sends one request at a time (`batchMaxCount: 1`), because free public plans refuse JSON-RPC batches.
+
 **Fees on Polygon.** Polygon PoS nodes reject any transaction whose priority fee is below 25 gwei. On Amoy the base fee is near zero and many blocks are empty, so wallet fee estimators can propose too little. For networks with a fee policy ([`simulator/networks.ts`](../simulator/networks.ts)) the gateway proposes explicit EIP-1559 fees from [`simulator/fees.ts`](../simulator/fees.ts): Polygon's gas station tip (else the RPC suggestion), never below the floor + 20 % and never above 8 × the floor. MetaMask shows these as "site suggested".
 
 ## 6. Dashboard modes

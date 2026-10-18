@@ -26,8 +26,8 @@ No `.env`, wallet, testnet RPC or deployed contract is needed: contract tests ru
 
 | Check | Result |
 |---|---|
-| Contract / gateway / parity tests (Hardhat) | **52 passing**, 0 failing |
-| Unit tests (Vitest, 8 files) | **67 passed**, 0 failed |
+| Contract / gateway / parity tests (Hardhat) | **54 passing**, 0 failing |
+| Unit tests (Vitest, 8 files) | **70 passed**, 0 failed |
 | Type check (root + frontend) | pass |
 | Lint | pass (0 problems) |
 | ABI drift check | `abi/CropLedger.json matches the compiled contract.` |
@@ -35,7 +35,7 @@ No `.env`, wallet, testnet RPC or deployed contract is needed: contract tests ru
 | Clean clone (`git clone` → `npm ci` → `abi:check` → `npm test` → typecheck → lint → build) | pass |
 | GitHub Actions CI | **passed** — [run 39147522825](https://github.com/Roots26Hz/CropLedger/actions/runs/39147522825) (39 s); later pushes run the same workflow |
 
-**Total automated tests: 119** (52 + 67).
+**Total automated tests: 124** (54 + 70).
 
 ### Gas used (measured on the Hardhat in-process network)
 
@@ -69,16 +69,16 @@ Every signed reading in these tests is produced by the project's own TypeScript 
 | Input validation | zero timestamp · far-future timestamp rejected, 60 s ahead accepted · nutrient above 10 000 · empty payload hash |
 | Ownership | two-step transfer; new owner can register, old owner cannot |
 
-### 4.2 Gateway integration — `test/gateway.test.ts` (9)
+### 4.2 Gateway integration — `test/gateway.test.ts` (11)
 
 Simulated device + gateway against a deployed contract:
-stages `validating → preflight → awaiting-wallet → submitted → confirmed` with tx hash, block and gas · replay stopped in preflight **without broadcasting** (sender nonce unchanged) · forced broadcast of a revoked device's reading is mined with status 0 and the reason `DeviceNotActive` is recovered · readings signed for another chain rejected before sending · payload edited after signing rejected · suggested EIP-1559 fees are passed to the wallet (checked on the mined transaction) · a transaction the wallet broadcast is still followed to *confirmed* when the wallet's provider fails afterwards · no receipt → *unconfirmed*, not *failed* · unsupported chains (e.g. 137) refused.
+stages `validating → preflight → awaiting-wallet → submitted → confirmed` with tx hash, block and gas · replay stopped in preflight **without broadcasting** (sender nonce unchanged) · forced broadcast of a revoked device's reading is mined with status 0 and the reason `DeviceNotActive` is recovered · readings signed for another chain rejected before sending · payload edited after signing rejected · suggested EIP-1559 fees are passed to the wallet (checked on the mined transaction) · a transaction the wallet broadcast is still followed to *confirmed* when the wallet's provider fails afterwards · no receipt → *unconfirmed*, not *failed* · with a read provider, the wallet gets an explicit gas limit (estimate + 20 %) · an account that cannot pay gas × fee cap is stopped **before** the wallet with the amounts shown · unsupported chains (e.g. 137) refused.
 
 ### 4.3 Local-mode parity — `test/parity.test.ts` (1 scenario, 19 checks)
 
 Runs one scripted scenario (unregistered, register, duplicate, valid, replay, gap, stale, forged key, altered value, zero timestamp, nutrient overflow, zero hash, genuine/tampered/out-of-range verification, revoke, post-revocation submit, double revoke, history) against the real contract **and** the in-browser `LocalLedger`, and requires identical outcomes. This keeps local demonstration mode honest.
 
-### 4.4 Unit tests (Vitest, 67)
+### 4.4 Unit tests (Vitest, 70)
 
 | File | Covers |
 |---|---|
@@ -86,7 +86,7 @@ Runs one scripted scenario (unregistered, register, duplicate, valid, replay, ga
 | `simulator/__tests__/signing.test.ts` (6) | type hash · sign + recover · message binds payload hash and IDs · altered message does not recover · domain separation (chain, contract) · submit-argument formatting |
 | `simulator/__tests__/deviceSimulator.test.ts` (9) | realistic ranges · monotonic nonce · chain re-sync · reproducibility · normal readings stay normal · spike, dropout and drift detected by the edge model · loop start/stop |
 | `simulator/__tests__/localLedger.test.ts` (4) | genuine reading · replay, unknown, forged, malformed, revoked · registry rules · snapshot/restore keeps replay protection |
-| `simulator/__tests__/networksAndErrors.test.ts` (13) | Amoy links use `amoy.polygonscan.com` (never mainnet) · no links for Hardhat · mainnets refused · retired Amoy RPC recognised · `wallet_addEthereumChain` params · custom-error decoding (direct and nested) · local errors · wallet rejection codes · MetaMask "Internal JSON-RPC error" unwrapped to the node's *transaction underpriced* message · nonce conflicts and rate limits · innermost message for unknown errors · RPC failures |
+| `simulator/__tests__/networksAndErrors.test.ts` (16) | Amoy links use `amoy.polygonscan.com` (never mainnet) · no links for Hardhat · mainnets refused · retired Amoy RPC recognised · `wallet_addEthereumChain` params · custom-error decoding (direct and nested) · local errors · wallet rejection codes · MetaMask "Internal JSON-RPC error" unwrapped to the node's *transaction underpriced* message · nonce conflicts and rate limits · Polygon's *gas required exceeds allowance* treated as insufficient funds, not a revert · free-plan RPC refusals hidden in call exceptions · a data-less revert is never called "on-chain" · innermost message for unknown errors · RPC failures |
 | `simulator/__tests__/fees.test.ts` (6) | no fee policy → wallet decides · Polygon 25 gwei floor (+20 %) · higher gas-station tip used · RPC fallback · cap on runaway suggestions · floor when every source fails |
 | `frontend/src/config/env.test.ts` (6) | valid config · mainnet chain refused · invalid values reported · retired RPC replaced with a warning · empty = local mode · RPC URL masking |
 | `frontend/src/services/ledger/localLedgerService.test.ts` (5) | simulated lifecycle with `LOCAL-…` reference and no tx hash · replay rejected in preflight · gateway forgery · real-deployment signature rejected · history after revocation |

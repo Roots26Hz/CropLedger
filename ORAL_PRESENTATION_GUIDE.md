@@ -183,7 +183,7 @@ A 4–6 minute live presentation **without slides**: you talk while showing Remi
 "An ESP32 or similar board would hold the signing key in a secure element, compute the same canonical payload and EIP-712 signature, and send it over LoRa or Wi-Fi to the gateway. The contract wouldn't change."
 
 **20. How did you test it?**
-"119 automated tests: 52 Hardhat tests for the contract, the gateway and the local-mode parity, and 67 unit tests for payloads, signing, the simulator and the frontend services. They run on every push in GitHub Actions."
+"124 automated tests: 54 Hardhat tests for the contract, the gateway and the local-mode parity, and 70 unit tests for payloads, signing, the simulator and the frontend services. They run on every push in GitHub Actions."
 
 ---
 

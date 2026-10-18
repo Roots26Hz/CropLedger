@@ -69,7 +69,7 @@ The original proposal is kept in [`CropLedger_README.md`](CropLedger_README.md).
 - **MetaMask**: connect/disconnect, EIP-6963 wallet discovery, account and network display, wrong-network detection with one-click switching, plain-language error messages. The app never asks for keys.
 - **Two clearly separated modes**: real blockchain (Polygon Amoy or a local Hardhat chain), or an in-browser **local demonstration mode** that applies the same rules (checked by a parity test) without pretending to be a blockchain.
 - **Safety rails**: only chain IDs 80002 (Amoy) and 31337 (Hardhat) are allowed, mainnets are refused, no secrets in the frontend, and RPC URLs are masked.
-- **119 automated tests**, plus linting, type checks and CI.
+- **124 automated tests**, plus linting, type checks and CI.
 
 ## 4. Architecture
 
@@ -247,7 +247,7 @@ Against **Amoy**, add `--network amoy --contract 0x…` (needs `GATEWAY_PRIVATE_
 ## 12. Automated tests
 
 ```bash
-npm test               # all: Hardhat (52) + Vitest (67)
+npm test               # all: Hardhat (54) + Vitest (70)
 npm run test:contracts # contract, gateway and local-mode parity tests
 npm run test:unit      # payload, signing, simulator, networks, frontend services
 npm run typecheck
