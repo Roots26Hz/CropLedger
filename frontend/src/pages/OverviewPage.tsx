@@ -91,12 +91,21 @@ export function OverviewPage() {
   const latest = readings.at(-1);
   const latestPayload = latest ? ledger.evidence.get(latest.deviceLabel, latest.nonce) : undefined;
 
-  // Trend: the device with the most recent reading, last 40 points.
+  // Trend device: the active device with the most recent reading among those
+  // with enough history (falls back to the overall latest reading's device).
+  const trendDevice = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const r of readings) counts.set(r.deviceId, (counts.get(r.deviceId) ?? 0) + 1);
+    const activeIds = new Set(ledger.devices.filter((d) => d.active).map((d) => d.deviceId));
+    const candidate = [...readings].reverse().find((r) => activeIds.has(r.deviceId) && (counts.get(r.deviceId) ?? 0) >= 2);
+    return candidate ?? latest;
+  }, [readings, ledger.devices, latest]);
+
   const trend = useMemo(() => {
-    if (!latest) return [];
+    if (!trendDevice) return [];
     const anomalies = new Set(feed.filter((f) => f.payload.anomalyLabel === "anomaly").map((f) => `${f.deviceLabel}#${f.payload.nonce}`));
     return readings
-      .filter((r) => r.deviceId === latest.deviceId)
+      .filter((r) => r.deviceId === trendDevice.deviceId)
       .slice(-40)
       .map((r) => ({
         x: Number(r.nonce),
@@ -106,7 +115,7 @@ export function OverviewPage() {
         k: r.k,
         anomaly: anomalies.has(`${r.deviceLabel}#${r.nonce}`) || ledger.evidence.get(r.deviceLabel, r.nonce)?.payload.anomalyLabel === "anomaly",
       }));
-  }, [readings, latest, feed, ledger.evidence]);
+  }, [readings, trendDevice, feed, ledger.evidence]);
 
   return (
     <>
@@ -160,14 +169,14 @@ export function OverviewPage() {
         <Card className="xl:col-span-2">
           <CardHeader
             title="Nutrient trend"
-            subtitle={latest ? `${latest.deviceLabel} · ${latest.fieldLabel} · last ${trend.length} recorded readings (x axis: device nonce)` : "Recorded readings will appear here"}
+            subtitle={trendDevice ? `${trendDevice.deviceLabel} · ${trendDevice.fieldLabel} · last ${trend.length} recorded readings (x axis: device nonce)` : "Recorded readings will appear here"}
             icon={<Activity className="size-4" />}
             actions={loading && <Spinner />}
           />
           <CardBody>
             {trend.length > 1 ? (
               <>
-                <NpkTrendChart data={trend} />
+                <NpkTrendChart data={trend} height={230} />
                 <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-faint">
                   <span className="size-2.5 rounded-full border-2 border-surface bg-danger-500 ring-1 ring-danger-100" /> Red points: readings the edge
                   model labelled as anomalies. They are still genuine, signed device reports.

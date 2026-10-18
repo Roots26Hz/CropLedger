@@ -51,6 +51,9 @@ function buildPipeline(tx: TxRecord, latestBlock: number | null, blockTime: numb
   const failedAt = FAILED_AT[tx.stage];
   const confirmations = tx.blockNumber !== undefined && latestBlock !== null && !tx.local ? Math.max(0, latestBlock - tx.blockNumber + 1) : null;
   const confirmed = tx.stage === "confirmed";
+  // Rejected before reaching the chain: later steps were never reached.
+  const stoppedEarly = tx.stage === "rejected-preflight" || tx.stage === "wallet-rejected" || (tx.stage === "failed" && !tx.txHash);
+  const notReached = "Not reached";
   const nodes: PipelineNode[] = [
     {
       key: "device",
@@ -81,7 +84,16 @@ function buildPipeline(tx: TxRecord, latestBlock: number | null, blockTime: numb
       icon: <Server className="size-4" />,
       state: failedAt === "rpc" ? "failed" : reached.has("submitted") ? "done" : reached.has("awaiting-wallet") ? "active" : "waiting",
       time: stageTime(tx, "awaiting-wallet"),
-      detail: failedAt === "rpc" ? "Rejected in the wallet" : tx.local ? "No RPC — in-browser" : reached.has("submitted") ? "Signed by MetaMask, broadcast" : "Waiting for wallet approval",
+      detail:
+        failedAt === "rpc"
+          ? "Rejected in the wallet"
+          : tx.local
+            ? "No RPC — in-browser"
+            : reached.has("submitted")
+              ? "Signed by MetaMask, broadcast"
+              : stoppedEarly
+                ? notReached
+                : "Waiting for wallet approval",
     },
     {
       key: "pending",
@@ -97,7 +109,7 @@ function buildPipeline(tx: TxRecord, latestBlock: number | null, blockTime: numb
       icon: <Blocks className="size-4" />,
       state: tx.blockNumber !== undefined ? "done" : reached.has("submitted") ? "active" : "waiting",
       time: blockTime ?? undefined,
-      detail: tx.blockNumber !== undefined ? `Block ${tx.blockNumber}${tx.local ? " (simulated)" : ""}` : "—",
+      detail: tx.blockNumber !== undefined ? `Block ${tx.blockNumber}${tx.local ? " (simulated)" : ""}` : stoppedEarly ? notReached : "—",
     },
     {
       key: "confirm",
@@ -111,7 +123,9 @@ function buildPipeline(tx: TxRecord, latestBlock: number | null, blockTime: numb
           : "Receipt status 1"
         : tx.stage === "reverted"
           ? "Receipt status 0 (reverted)"
-          : "Waiting for receipt",
+          : stoppedEarly
+            ? notReached
+            : "Waiting for receipt",
     },
     {
       key: "event",
@@ -126,7 +140,9 @@ function buildPipeline(tx: TxRecord, latestBlock: number | null, blockTime: numb
             : `ReadingRecorded${tx.readingIndex !== undefined ? ` (index ${tx.readingIndex})` : ""}`
         : failedAt === "event"
           ? "No event (reverted)"
-          : "—",
+          : stoppedEarly
+            ? notReached
+            : "—",
     },
   ];
   return nodes;
@@ -178,6 +194,10 @@ function ConsensusIllustration() {
     <div className="flex flex-col items-center gap-4 2xl:flex-row">
       <svg viewBox="0 0 220 220" className="size-48 shrink-0" role="img" aria-label="Illustrative animation of validators taking turns to propose blocks">
         <circle cx="110" cy="110" r="78" fill="none" stroke="var(--color-line)" strokeDasharray="4 6" />
+        {(() => {
+          const angle = (proposer / validators) * Math.PI * 2 - Math.PI / 2;
+          return <line x1={110 + 78 * Math.cos(angle)} y1={110 + 78 * Math.sin(angle)} x2="110" y2="110" stroke="var(--color-chain-500)" strokeWidth="2" />;
+        })()}
         <rect x="88" y="88" width="44" height="44" rx="8" fill="var(--color-forest-50)" stroke="var(--color-forest-300)" />
         <text x="110" y="114" textAnchor="middle" fontSize="11" fill="var(--color-forest-700)" fontFamily="var(--font-mono)">
           block
@@ -190,7 +210,6 @@ function ConsensusIllustration() {
           const voted = (i - proposer + validators) % validators < votes;
           return (
             <g key={i}>
-              {isProposer && <line x1={x} y1={y} x2="110" y2="110" stroke="var(--color-chain-500)" strokeWidth="2" />}
               <circle cx={x} cy={y} r={isProposer ? 13 : 10} fill={isProposer ? "var(--color-chain-500)" : voted ? "var(--color-forest-400)" : "var(--color-surface)"} stroke={isProposer ? "var(--color-surface)" : "var(--color-line-strong)"} strokeWidth="2" />
               <text x={x} y={y + 3.5} textAnchor="middle" fontSize="9" fill={isProposer || voted ? "#fff" : "var(--color-ink-faint)"} fontFamily="var(--font-sans)">
                 V{i + 1}
@@ -224,7 +243,8 @@ export function NetworkPage() {
   const network = getNetwork(settings.chainId);
   const candidates = useMemo(() => ledger.txs.filter((t) => t.kind !== "attack" || t.txHash || t.localRef || t.stages.length > 0), [ledger.txs]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const tx = candidates.find((t) => t.id === selectedId) ?? candidates[0] ?? null;
+  const fallback = candidates.find((t) => t.kind === "submitReading" && t.stage === "confirmed") ?? candidates[0] ?? null;
+  const tx = candidates.find((t) => t.id === selectedId) ?? fallback;
   const [blocks, setBlocks] = useState<BlockSummary[]>([]);
   const [blockTime, setBlockTime] = useState<number | null>(null);
   const [blockError, setBlockError] = useState<string | null>(null);
@@ -372,7 +392,7 @@ export function NetworkPage() {
                           ) : (
                             b.number.toLocaleString()
                           )}
-                          {ourBlocks.has(b.number) && <Badge tone="success" className="ml-2">contains your tx</Badge>}
+                          {ourBlocks.has(b.number) && <Badge tone="success" className="ml-2 font-sans">contains your tx</Badge>}
                         </td>
                         <td className="px-3 py-2.5 text-xs text-ink-muted">{relativeTime(b.timestamp * 1000)}</td>
                         <td className="tabular px-3 py-2.5 text-right">{b.txCount}</td>

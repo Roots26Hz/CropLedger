@@ -80,7 +80,9 @@ export function SimulatorProvider({ children }: { children: ReactNode }) {
 
   // Per-deployment feed; reset simulator instances when the scope changes.
   useEffect(() => {
-    setFeed(loadJson<FeedItem[]>(`feed.v1.${scope}`, []));
+    const stored = loadJson<FeedItem[]>(`feed.v1.${scope}`, []);
+    feedRef.current = stored;
+    setFeed(stored);
     simulators.current.clear();
     setRunning(false);
     setUserSelected(false);
@@ -115,13 +117,14 @@ export function SimulatorProvider({ children }: { children: ReactNode }) {
     setSelectedState(preferred?.label ?? null);
   }, [devices, selected, userSelected]);
 
+  // feedRef is updated synchronously so a submission queued right after
+  // generation can find its item before React re-renders.
   const persistFeed = useCallback(
     (updater: (all: FeedItem[]) => FeedItem[]) => {
-      setFeed((all) => {
-        const next = updater(all).slice(0, MAX_FEED);
-        saveJson(`feed.v1.${scope}`, next);
-        return next;
-      });
+      const next = updater(feedRef.current).slice(0, MAX_FEED);
+      feedRef.current = next;
+      saveJson(`feed.v1.${scope}`, next);
+      setFeed(next);
     },
     [scope],
   );
@@ -161,7 +164,10 @@ export function SimulatorProvider({ children }: { children: ReactNode }) {
     (id: string, options: { forceBroadcast?: boolean } = {}) => {
       const run = async (): Promise<LedgerResult | null> => {
         const item = feedRef.current.find((f) => f.id === id);
-        if (!item || !service) return null;
+        if (!item || !service) {
+          console.warn(`CropLedger: reading ${id} is no longer in the feed; submission skipped.`);
+          return null;
+        }
         const signed = signedReadingFromJson(item.signed);
         const txId = newId();
         persistFeed((all) => all.map((f) => (f.id === id ? { ...f, txId } : f)));
