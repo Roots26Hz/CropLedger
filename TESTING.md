@@ -27,7 +27,7 @@ No `.env`, wallet, testnet RPC or deployed contract is needed: contract tests ru
 | Check | Result |
 |---|---|
 | Contract / gateway / parity tests (Hardhat) | **49 passing**, 0 failing |
-| Unit tests (Vitest, 7 files) | **56 passed**, 0 failed |
+| Unit tests (Vitest, 7 files) | **58 passed**, 0 failed |
 | Type check (root + frontend) | pass |
 | Lint | pass (0 problems) |
 | ABI drift check | `abi/CropLedger.json matches the compiled contract.` |
@@ -35,7 +35,7 @@ No `.env`, wallet, testnet RPC or deployed contract is needed: contract tests ru
 | Clean clone (`git clone` → `npm ci` → `abi:check` → `npm test` → typecheck → lint → build) | pass |
 | GitHub Actions CI | **passed** — [run 39147522825](https://github.com/Roots26Hz/CropLedger/actions/runs/39147522825) (39 s); later pushes run the same workflow |
 
-**Total automated tests: 105** (49 + 56).
+**Total automated tests: 107** (49 + 58).
 
 ### Gas used (measured on the Hardhat in-process network)
 
@@ -78,7 +78,7 @@ stages `validating → preflight → awaiting-wallet → submitted → confirmed
 
 Runs one scripted scenario (unregistered, register, duplicate, valid, replay, gap, stale, forged key, altered value, zero timestamp, nutrient overflow, zero hash, genuine/tampered/out-of-range verification, revoke, post-revocation submit, double revoke, history) against the real contract **and** the in-browser `LocalLedger`, and requires identical outcomes. This keeps local demonstration mode honest.
 
-### 4.4 Unit tests (Vitest, 56)
+### 4.4 Unit tests (Vitest, 58)
 
 | File | Covers |
 |---|---|
@@ -86,8 +86,8 @@ Runs one scripted scenario (unregistered, register, duplicate, valid, replay, ga
 | `simulator/__tests__/signing.test.ts` (6) | type hash · sign + recover · message binds payload hash and IDs · altered message does not recover · domain separation (chain, contract) · submit-argument formatting |
 | `simulator/__tests__/deviceSimulator.test.ts` (9) | realistic ranges · monotonic nonce · chain re-sync · reproducibility · normal readings stay normal · spike, dropout and drift detected by the edge model · loop start/stop |
 | `simulator/__tests__/localLedger.test.ts` (4) | genuine reading · replay, unknown, forged, malformed, revoked · registry rules · snapshot/restore keeps replay protection |
-| `simulator/__tests__/networksAndErrors.test.ts` (9) | Amoy links use `amoy.polygonscan.com` (never mainnet) · no links for Hardhat · mainnets refused · `wallet_addEthereumChain` params · custom-error decoding (direct and nested) · local errors · wallet rejection codes · RPC failures |
-| `frontend/src/config/env.test.ts` (5) | valid config · mainnet chain refused · invalid values reported · empty = local mode · RPC URL masking |
+| `simulator/__tests__/networksAndErrors.test.ts` (10) | Amoy links use `amoy.polygonscan.com` (never mainnet) · no links for Hardhat · mainnets refused · retired Amoy RPC recognised · `wallet_addEthereumChain` params · custom-error decoding (direct and nested) · local errors · wallet rejection codes · RPC failures |
+| `frontend/src/config/env.test.ts` (6) | valid config · mainnet chain refused · invalid values reported · retired RPC replaced with a warning · empty = local mode · RPC URL masking |
 | `frontend/src/services/ledger/localLedgerService.test.ts` (5) | simulated lifecycle with `LOCAL-…` reference and no tx hash · replay rejected in preflight · gateway forgery · real-deployment signature rejected · history after revocation |
 
 ## 5. Manual end-to-end checks performed

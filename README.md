@@ -69,7 +69,7 @@ The original proposal is kept in [`CropLedger_README.md`](CropLedger_README.md).
 - **MetaMask**: connect/disconnect, EIP-6963 wallet discovery, account and network display, wrong-network detection with one-click switching, plain-language error messages. The app never asks for keys.
 - **Two clearly separated modes**: real blockchain (Polygon Amoy or a local Hardhat chain), or an in-browser **local demonstration mode** that applies the same rules (checked by a parity test) without pretending to be a blockchain.
 - **Safety rails**: only chain IDs 80002 (Amoy) and 31337 (Hardhat) are allowed, mainnets are refused, no secrets in the frontend, and RPC URLs are masked.
-- **105 automated tests**, plus linting, type checks and CI.
+- **107 automated tests**, plus linting, type checks and CI.
 
 ## 4. Architecture
 
@@ -197,7 +197,7 @@ cp .env.example .env
 |---|---|---|---|
 | `VITE_CHAIN_ID` | dashboard | yes | `80002` (Amoy) or `31337` (Hardhat). Others are refused. |
 | `VITE_CONTRACT_ADDRESS` | dashboard | yes | Your deployed CropLedger address. Empty → local demo mode. |
-| `VITE_RPC_URL` | dashboard | yes | Read-only RPC (default `https://rpc-amoy.polygon.technology`). |
+| `VITE_RPC_URL` | dashboard | yes | Read-only RPC (default `https://polygon-amoy.drpc.org`; the old `rpc-amoy.polygon.technology` was shut down in July 2026). |
 | `VITE_DEPLOY_BLOCK` | dashboard | yes | Deployment block (optional). |
 | `AMOY_RPC_URL` | Hardhat, CLI | server-side | RPC for `deploy:amoy` and `sim --network amoy`. |
 | `DEPLOYER_PRIVATE_KEY` | `deploy:amoy`, `sim register` | **secret** | Testnet-only deployer/owner. Prefer `npx hardhat keystore set DEPLOYER_PRIVATE_KEY`. |
@@ -247,7 +247,7 @@ Against **Amoy**, add `--network amoy --contract 0x…` (needs `GATEWAY_PRIVATE_
 ## 12. Automated tests
 
 ```bash
-npm test               # all: Hardhat (49) + Vitest (56)
+npm test               # all: Hardhat (49) + Vitest (58)
 npm run test:contracts # contract, gateway and local-mode parity tests
 npm run test:unit      # payload, signing, simulator, networks, frontend services
 npm run typecheck
@@ -284,8 +284,8 @@ Full step-by-step instructions, including registering a device, submitting a sig
 
 1. Install MetaMask and create or import a **testnet-only** account.
 2. In the dashboard click **Connect wallet**. The account and network appear in the top bar.
-3. If MetaMask is on another network, click **Switch to Amoy**. The dashboard asks MetaMask to switch, and to add Amoy if needed (RPC `https://rpc-amoy.polygon.technology`, chain ID 80002, POL, explorer `https://amoy.polygonscan.com`).
-4. Get test POL from the [Polygon faucet](https://faucet.polygon.technology/) or another Amoy faucet (subject to availability).
+3. To add Polygon Amoy to MetaMask, open **System Configuration** and click **Add / switch to Amoy** in the *MetaMask network* row (works in either mode, before any deployment). It adds the network if needed (RPC `https://polygon-amoy.drpc.org`, chain ID 80002, POL, explorer `https://amoy.polygonscan.com`) and switches to it. In network mode the top bar also shows **Switch to Amoy** whenever MetaMask is on the wrong network.
+4. Get test POL from a faucet. Faucet rules change often; see [REMIX_DEPLOYMENT_GUIDE.md, step 4.3](REMIX_DEPLOYMENT_GUIDE.md#43-get-test-pol).
 
 Every write (register, revoke, submit) opens a MetaMask approval. Rejecting is handled gracefully, and nothing is sent.
 

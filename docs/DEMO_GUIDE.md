@@ -12,10 +12,10 @@ Step-by-step scripts for the six required scenarios, in three setups. Pick the s
 
 ```bash
 npm install          # once
-npm test             # optional: 105 tests should pass
+npm test             # optional: 107 tests should pass
 ```
 
-**Setup A** — follow [REMIX_DEPLOYMENT_GUIDE.md](../REMIX_DEPLOYMENT_GUIDE.md) §1–8 beforehand, then `npm run dev`, open <http://localhost:5173>, connect MetaMask (Amoy), System Configuration → *Run checks* (all green). Keep Remix open in a second tab with the deployed contract.
+**Setup A** — follow [REMIX_DEPLOYMENT_GUIDE.md](../REMIX_DEPLOYMENT_GUIDE.md) §1–8 beforehand (§4 adds Amoy to MetaMask with the working RPC `https://polygon-amoy.drpc.org`), then `npm run dev`, open <http://localhost:5173>, connect MetaMask (Amoy), System Configuration → *Run checks* (all green). Keep Remix open in a second tab with the deployed contract.
 
 **Setup B** — three terminals:
 

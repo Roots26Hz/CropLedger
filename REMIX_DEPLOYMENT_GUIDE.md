@@ -32,7 +32,7 @@ The Solidity source is shown **only in Remix**. The dashboard never displays Sol
 | Item | Notes |
 |---|---|
 | Browser with **MetaMask** | Chrome, Brave, Edge or Firefox with the MetaMask extension. Use a **testnet-only account**; never use an account that holds real funds. |
-| **Amoy test POL** | Gas on Amoy is paid in test POL (no real value). Faucets: the official [Polygon faucet](https://faucet.polygon.technology/) and third-party faucets (e.g. Alchemy, QuickNode). Availability and eligibility rules change; a fraction of 1 POL is enough for this whole guide. |
+| **Amoy test POL** | Gas on Amoy is paid in test POL (no real value). See [step 4.3](#43-get-test-pol) for faucets; about 0.1 POL is enough for this whole guide. |
 | This repository | `git clone https://github.com/Roots26Hz/CropLedger.git`, then `npm install` (see [README](README.md#installation)). Needed for the dashboard and for generating device signatures. |
 | [Remix IDE](https://remix.ethereum.org/) | Web version, nothing to install. |
 
@@ -94,20 +94,69 @@ This writes `CropLedger.flat.sol` (gitignored) with all imports inlined. Upload 
 
 ## 4. Prepare MetaMask for Polygon Amoy
 
-Add the network in either way:
+> **Important (July 2026 change):** Polygon shut down the old public RPC `https://rpc-amoy.polygon.technology` — the name no longer resolves. If you typed it into MetaMask, MetaMask cannot read the chain ID and refuses to save the network. Use **`https://polygon-amoy.drpc.org`** (the endpoint in Polygon's current docs) or one of the alternatives in step 4.2.
 
-- **From the dashboard:** run `npm run dev`, set the network to Polygon Amoy in System Configuration, connect your wallet and press **Switch to Amoy** in the top bar. The app asks MetaMask to add the network (`wallet_addEthereumChain`) with the values below.
-- **Manually:** MetaMask → network menu → *Add network* → *Add a network manually*:
+There are two parts: **4.1 add the network** and **4.3 get test POL**. You only need *one* of the methods in 4.1.
+
+### 4.1 Method A — one click from the dashboard (easiest)
+
+1. In the project folder run `npm run dev` and open <http://localhost:5173> in the browser that has MetaMask.
+2. Open **System Configuration** (left sidebar, last item). You do **not** need a contract address or to change the operating mode for this step.
+3. Make sure **Network** shows *Polygon Amoy Testnet (80002)*.
+4. In the **MetaMask network** row, click **Add / switch to Amoy**.
+5. MetaMask opens:
+   - If asked to **connect**, choose your testnet account → *Connect*.
+   - If asked to **add a network**, check: name *Polygon Amoy Testnet*, chain ID *80002*, currency *POL*, RPC *https://polygon-amoy.drpc.org* → **Approve**.
+   - If asked to **switch network** → **Switch network**.
+6. The row now says *Connected to Polygon Amoy Testnet*, and MetaMask shows **Polygon Amoy** with a balance of *0 POL*.
+
+If nothing happens: MetaMask may already have a popup waiting — click the MetaMask (fox) icon in the browser toolbar to see it.
+
+### 4.2 Method B — add it manually in MetaMask
+
+MetaMask's labels change between versions; the path is roughly:
+
+1. Click the **network selector** (top-left of the MetaMask window, it shows the current network name).
+2. Click **Add a custom network** (older versions: *Add network* → *Add a network manually* at the bottom of the page).
+3. Fill in exactly:
 
 | Field | Value |
 |---|---|
-| Network name | Polygon Amoy Testnet |
-| RPC URL | `https://rpc-amoy.polygon.technology` |
+| Network name | `Polygon Amoy Testnet` |
+| Default RPC URL | `https://polygon-amoy.drpc.org` (click *Add RPC URL* if the field is a drop-down) |
 | Chain ID | `80002` |
 | Currency symbol | `POL` |
-| Block explorer | `https://amoy.polygonscan.com` |
+| Block explorer URL | `https://amoy.polygonscan.com` |
 
-Then select **Polygon Amoy** and fund the account from a faucet. Wait until the POL balance shows in MetaMask.
+4. Click **Save**, then select **Polygon Amoy Testnet** in the network selector. (In newer MetaMask versions you may need to enable *Show test networks* in the network list.)
+
+**If MetaMask complains while saving:**
+
+| Message | Meaning / fix |
+|---|---|
+| *Could not fetch chain ID. Is your RPC URL correct?* | The RPC is unreachable — usually the retired `rpc-amoy.polygon.technology`. Use `https://polygon-amoy.drpc.org`, or `https://polygon-amoy-bor-rpc.publicnode.com`, or `https://polygon-amoy.gateway.tenderly.co`. |
+| *The chain ID returned by the RPC does not match* | You typed the wrong chain ID or an RPC for another network. Amoy is `80002` (hex `0x13882`). |
+| A warning that the currency symbol does not match | Safe to continue with `POL` (Polygon renamed MATIC to POL). |
+| *This Chain ID is currently used by …* / network already exists | Amoy is already in MetaMask (perhaps with the dead RPC). Open it via *Settings → Networks* (or the network's ⋮ menu → *Edit*) and replace its RPC URL with `https://polygon-amoy.drpc.org`. |
+
+You can check an RPC yourself from a terminal; a working one answers `"result":"0x13882"`:
+
+```bash
+curl -s -X POST -H "content-type: application/json" --data '{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}' https://polygon-amoy.drpc.org
+```
+
+### 4.3 Get test POL
+
+1. In MetaMask, with **Polygon Amoy** selected, copy your account address (click the account name/address at the top).
+2. Open a faucet, paste the address and request Amoy POL. Faucets change their rules often; try them in this order:
+   - Official: <https://faucet.polygon.technology/> (choose *Polygon PoS (Amoy)*; may ask you to sign in or may be temporarily unavailable).
+   - Alchemy: <https://www.alchemy.com/faucets/polygon-amoy> (free account; at the time of writing it requires a small balance of real ETH on Ethereum mainnet).
+   - QuickNode: <https://faucet.quicknode.com/polygon/amoy> (wallet connection; limited drips per day).
+3. Wait 1–2 minutes. The balance appears in MetaMask, and you can confirm it at `https://amoy.polygonscan.com/address/<your address>`.
+
+About **0.1 POL** is plenty for deploying the contract and running the whole demo. If every faucet refuses, ask your instructor or a classmate to send you a little Amoy POL (it has no real value) — or continue rehearsing with the local Hardhat chain ([docs/DEMO_GUIDE.md](docs/DEMO_GUIDE.md), setup B) until you have tokens.
+
+**Done when:** MetaMask shows *Polygon Amoy Testnet* and a POL balance above 0.
 
 ---
 
@@ -162,7 +211,7 @@ Either:
   ```dotenv
   VITE_CHAIN_ID=80002
   VITE_CONTRACT_ADDRESS=0xYourDeployedAddress
-  VITE_RPC_URL=https://rpc-amoy.polygon.technology
+  VITE_RPC_URL=https://polygon-amoy.drpc.org
   VITE_DEPLOY_BLOCK=<deployment block number>
   ```
   and restart `npm run dev`. These values are public (they end up in the browser bundle) — never put keys in `VITE_` variables.
@@ -288,9 +337,10 @@ Remix decodes custom errors because they are part of the ABI. The dashboard's **
 | `ParserError: Source not found` for OpenZeppelin | Wait for Remix to fetch `.deps`, check your connection, or use `npm run flatten` and upload the flattened file. |
 | Compiler error about pragma | Select compiler `0.8.24` or newer (recommended `0.8.34`). |
 | Remix shows another network | Switch MetaMask to Amoy; reselect *Injected Provider – MetaMask*. |
-| *insufficient funds* | Get test POL from a faucet; wait for it to arrive. |
+| *insufficient funds* | Get test POL from a faucet ([step 4.3](#43-get-test-pol)); wait for it to arrive. |
+| MetaMask *Could not fetch chain ID* when adding Amoy | The RPC is down or retired; use `https://polygon-amoy.drpc.org` ([step 4.2](#42-method-b--add-it-manually-in-metamask)). |
 | `OwnableUnauthorizedAccount` | Only the `initialOwner` account can register or revoke devices. |
 | `InvalidSignature` for a fresh reading | The arguments were signed for another contract or chain. Re-run `remix-args` with the right `--contract` and `--chain-id 80002`. |
 | `InvalidTimestamp` | Arguments are stale or your clock is wrong; regenerate them. |
 | Dashboard says *No contract code* | Wrong address or network in System Configuration. |
-| Dashboard RPC errors | The public RPC may be rate-limited; set another Amoy endpoint in `VITE_RPC_URL` (public or domain-restricted key only). |
+| Dashboard RPC errors | The public RPC may be rate-limited or down; in System Configuration set another Amoy endpoint (e.g. `https://polygon-amoy-bor-rpc.publicnode.com`), or change `VITE_RPC_URL` (public or domain-restricted key only). |

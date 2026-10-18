@@ -87,7 +87,7 @@ All results below were obtained on 18 October 2026 and are reproduced by *npm te
 | Contract (Hardhat, 42 tests) | Deployment, registration, revocation, firmware, submission and retrieval, payload verification, invalid/cross-device/cross-contract/malformed signatures, replay, input validation, ownership, ABI drift | 42 passed |
 | Gateway integration (6) | Lifecycle stages, preflight rejection without broadcast, mined failure with recovered reason, wrong domain, edited payload, unsupported chain | 6 passed |
 | Local-mode parity (1 scenario, 19 checks) | Identical accept/reject outcomes for the contract and the in-browser ledger | passed |
-| Unit tests (Vitest, 56) | Canonical payload, signing, simulator, networks, error decoding, configuration, local ledger service | 56 passed |
+| Unit tests (Vitest, 58) | Canonical payload, signing, simulator, networks, error decoding, configuration, local ledger service | 58 passed |
 
 Type checking, linting, the ABI check, the production build and a clean-clone install passed, and the GitHub Actions workflow completed successfully. Measured gas on the Hardhat network: registerDevice 184,247; first submitReading of a device approx. 134,240; subsequent readings approx. 100,040. End-to-end runs against a local Hardhat node confirmed real transactions for registration and readings; a genuine payload verified true and a payload with one altered nutrient value verified false; replayed, unregistered, forged and revoked submissions were rejected with StaleNonce, UnknownDevice, InvalidSignature and DeviceNotActive respectively, while the revoked device's history remained verifiable.
 
