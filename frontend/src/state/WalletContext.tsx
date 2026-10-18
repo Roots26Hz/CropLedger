@@ -24,7 +24,8 @@ interface WalletContextValue {
   chainId: number | null;
   error: DecodedError | null;
   busy: boolean;
-  connect: () => Promise<void>;
+  /** Resolves to true when an account is connected. */
+  connect: () => Promise<boolean>;
   disconnect: () => Promise<void>;
   switchNetwork: (chainId: number) => Promise<boolean>;
   clearError: () => void;
@@ -112,7 +113,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const provider = providerRef.current;
     if (!provider) {
       setError({ kind: "wallet-missing", message: "No browser wallet found. Install MetaMask, then reload this page." });
-      return;
+      return false;
     }
     setBusy(true);
     setStatus("connecting");
@@ -124,9 +125,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setChainId(await getWalletChainId(provider));
       setStatus("connected");
       saveJson(DISCONNECTED_KEY, false);
+      return true;
     } catch (e) {
       setError(decodeError(e));
       setStatus("disconnected");
+      return false;
     } finally {
       setBusy(false);
     }

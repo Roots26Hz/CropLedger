@@ -13,12 +13,13 @@ import {
   Stethoscope,
   Trash2,
   Upload,
+  Wallet,
   XCircle,
   AlertTriangle,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { isAddress } from "ethers";
-import { HARDHAT_LOCAL, POLYGON_AMOY, explorerAddressUrl, getNetwork } from "@core/networks.js";
+import { HARDHAT_LOCAL, POLYGON_AMOY, chainLabel, explorerAddressUrl, getNetwork } from "@core/networks.js";
 import type { SignedReadingJson } from "@core/serialization.js";
 import { PageHeader } from "../components/layout/PageHeader";
 import { Badge } from "../components/ui/Badge";
@@ -147,6 +148,17 @@ export function SystemConfigPage() {
     }
   };
 
+  // Add the selected network to MetaMask (or switch to it). Works in either
+  // mode, so the wallet can be prepared before a contract is deployed.
+  const selectedNetwork = getNetwork(chainId)!;
+  const walletOnSelected = wallet.status === "connected" && wallet.chainId === chainId;
+  const prepareWallet = async () => {
+    if (wallet.status !== "connected" && !(await wallet.connect())) return;
+    if (await wallet.switchNetwork(chainId)) {
+      notify({ tone: "success", title: `MetaMask is on ${selectedNetwork.name}`, message: chainId === POLYGON_AMOY.chainId ? "Next: get test POL from a faucet." : undefined });
+    }
+  };
+
   const exportEvidence = () => {
     const items = ledger.evidence.all();
     downloadJson(`cropledger-evidence-${settings.mode === "local" ? "local-demo" : settings.chainId}.json`, items);
@@ -250,6 +262,32 @@ export function SystemConfigPage() {
             <Field className="sm:col-span-2" label="Read RPC URL" htmlFor="cfg-rpc" error={rpcError} hint="Used for read-only queries. It is visible in the browser, so use a public endpoint or a domain-restricted key.">
               <Input id="cfg-rpc" className="font-mono text-[13px]" value={rpcUrl} onChange={(e) => setRpcUrl(e.target.value.trim())} spellCheck={false} />
             </Field>
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface-2 p-3 sm:col-span-2">
+              <Wallet className="size-4 shrink-0 text-forest-600" />
+              <div className="min-w-0 flex-1 text-[13px]">
+                <p className="font-medium text-ink">MetaMask network</p>
+                <p className="text-ink-muted">
+                  {wallet.status === "unavailable"
+                    ? "MetaMask not detected in this browser."
+                    : wallet.status !== "connected"
+                      ? "Wallet not connected yet."
+                      : walletOnSelected
+                        ? `Connected to ${selectedNetwork.name}.`
+                        : `Wallet is on ${chainLabel(wallet.chainId ?? 0)}.`}{" "}
+                  Adds {selectedNetwork.name} (chain {selectedNetwork.chainId}, RPC {selectedNetwork.defaultRpcUrl}) to MetaMask if needed, then switches to it.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant={walletOnSelected ? "outline" : "secondary"}
+                loading={wallet.busy}
+                disabled={wallet.status === "unavailable" || walletOnSelected}
+                disabledReason={wallet.status === "unavailable" ? "Install MetaMask, then reload this page" : `Already on ${selectedNetwork.shortName}`}
+                onClick={() => void prepareWallet()}
+              >
+                {walletOnSelected ? `On ${selectedNetwork.shortName}` : `Add / switch to ${selectedNetwork.shortName}`}
+              </Button>
+            </div>
             <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
               <Button icon={<Save className="size-4" />} onClick={save} disabled={!dirty || Boolean(addressError || rpcError || blockError)} disabledReason={!dirty ? "No changes to save" : "Fix the highlighted fields"}>
                 Save settings
@@ -373,13 +411,18 @@ export function SystemConfigPage() {
                 Reset local demo
               </Button>
             </div>
-            {settings.mode === "network" && settings.chainId === POLYGON_AMOY.chainId && (
+            {chainId === POLYGON_AMOY.chainId && (
               <Callout tone="info" title="Need Amoy test POL?">
-                Gas on Amoy is paid in test POL with no real value. Request some from the{" "}
-                <a className="text-chain-600 underline" href={POLYGON_AMOY.faucets[0]} target="_blank" rel="noreferrer noopener">
-                  Polygon faucet
-                </a>{" "}
-                (subject to availability and eligibility).
+                Gas on Amoy is paid in test POL with no real value. Faucets (availability and eligibility rules change):{" "}
+                {POLYGON_AMOY.faucets.map((url, i) => (
+                  <span key={url}>
+                    {i > 0 && " · "}
+                    <a className="text-chain-600 underline" href={url} target="_blank" rel="noreferrer noopener">
+                      {new URL(url).hostname}
+                    </a>
+                  </span>
+                ))}
+                .
               </Callout>
             )}
           </CardBody>
