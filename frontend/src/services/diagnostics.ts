@@ -3,7 +3,7 @@
  * deployed contract, ABI/signing compatibility and the wallet, and explains
  * each failure. Read-only; never sends a transaction.
  */
-import { Contract, JsonRpcProvider, getAddress, isAddress } from "ethers";
+import { Contract, JsonRpcProvider, formatEther, getAddress, isAddress } from "ethers";
 import { CROPLEDGER_ABI } from "@core/abi.js";
 import { decodeError } from "@core/errors.js";
 import { chainLabel, getNetwork } from "@core/networks.js";
@@ -69,7 +69,7 @@ export async function runDiagnostics(input: DiagnosticsInput): Promise<Check[]> 
     add("address", "Contract address", "skip", "Skipped because the RPC endpoint is not usable.");
   } else {
     const address = getAddress(input.contractAddress);
-    const reader = new JsonRpcProvider(input.rpcUrl, input.chainId, { staticNetwork: true });
+    const reader = new JsonRpcProvider(input.rpcUrl, input.chainId, { staticNetwork: true, batchMaxCount: 1 });
     try {
       const code = await reader.getCode(address);
       if (code === "0x") {
@@ -122,6 +122,30 @@ export async function runDiagnostics(input: DiagnosticsInput): Promise<Check[]> 
     add("wallet", "Wallet", "fail", `Wallet is on ${chainLabel(input.wallet.chainId ?? 0)}. Use “Switch to ${network.shortName}”.`);
   } else {
     add("wallet", "Wallet", "pass", `Connected to ${network.name}.`);
+  }
+
+  // Balance: gas estimation fails outright when the account cannot pay.
+  if (input.wallet.account && rpcOk) {
+    const reader = new JsonRpcProvider(input.rpcUrl, input.chainId, { staticNetwork: true, batchMaxCount: 1 });
+    try {
+      const balance = await reader.getBalance(input.wallet.account);
+      // About one reading: ~135k gas at Polygon's ~32 gwei suggested fee cap.
+      const perReading = 135_000n * 32_000_000_000n;
+      const readings = balance / perReading;
+      const amount = `${Number(formatEther(balance)).toLocaleString(undefined, { maximumSignificantDigits: 4 })} ${network.nativeCurrency.symbol}`;
+      add(
+        "balance",
+        "Wallet balance",
+        readings >= 5n ? "pass" : readings >= 1n ? "warn" : "fail",
+        readings >= 1n
+          ? `${amount} — enough for roughly ${readings.toString()} reading submissions.`
+          : `${amount} — not enough to pay for a reading. Get test ${network.nativeCurrency.symbol} from a faucet.`,
+      );
+    } catch (error) {
+      add("balance", "Wallet balance", "warn", decodeError(error).message);
+    } finally {
+      reader.destroy();
+    }
   }
   return checks;
 }

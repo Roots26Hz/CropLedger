@@ -29,7 +29,7 @@ import { useLedger } from "../state/LedgerContext";
 import { useSettings } from "../state/SettingsContext";
 import { useSimulator } from "../state/SimulatorContext";
 import { useWallet } from "../state/WalletContext";
-import { formatDateTime, relativeTime } from "../utils/format";
+import { APPROX_READING_COST_WEI, formatDateTime, formatNative, relativeTime } from "../utils/format";
 
 function KeyValue({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -233,6 +233,14 @@ export function OverviewPage() {
                   )}
                 </KeyValue>
                 <KeyValue label="Account">{wallet.account ? <HashText value={wallet.account} /> : "—"}</KeyValue>
+                {!isLocal && ledger.walletBalance !== null && (
+                  <KeyValue label="Balance">
+                    <span className="tabular text-xs">
+                      {formatNative(ledger.walletBalance, network?.nativeCurrency.symbol ?? "ETH")}{" "}
+                      {ledger.walletBalance < APPROX_READING_COST_WEI * 3n && <Badge tone="warning">low — use a faucet</Badge>}
+                    </span>
+                  </KeyValue>
+                )}
                 <KeyValue label="Wallet network">
                   {wallet.chainId ? (
                     <span className="text-xs">

@@ -186,6 +186,40 @@ describe("Gateway", function () {
     expect(result.error?.message).to.match(/may still confirm/);
   });
 
+  it("checks gas, fee cap and balance on the read provider before asking the wallet", async function () {
+    const { domain, deviceKey, simulator, relayer } = await networkHelpers.loadFixture(fixture);
+    const signed = await signReading(deviceKey, domain, simulator.generate().payload);
+    const tip = ethers.parseUnits("30", "gwei");
+    const result = await new Gateway(cropLedgerContract(domain.verifyingContract, relayer), domain).submit(signed, {
+      callProvider: ethers.provider,
+      fees: async () => ({ maxPriorityFeePerGas: tip, maxFeePerGas: tip * 2n, source: "test" }),
+    });
+    expect(result.stage).to.equal("confirmed");
+    const mined = await ethers.provider.getTransaction(result.txHash!);
+    // The wallet received an explicit gas limit (estimate + 20 %).
+    expect(mined!.gasLimit > result.gasUsed!).to.equal(true);
+    expect(mined!.gasLimit < (result.gasUsed! * 13n) / 10n).to.equal(true);
+  });
+
+  it("stops before the wallet with a clear message when the account cannot pay for gas", async function () {
+    const { domain, deviceKey, simulator } = await networkHelpers.loadFixture(fixture);
+    const poor = Wallet.createRandom().connect(ethers.provider);
+    await networkHelpers.setBalance(poor.address, ethers.parseUnits("0.001", "ether"));
+    const signed = await signReading(deviceKey, domain, simulator.generate().payload);
+    const stages: SubmissionStage[] = [];
+    const tip = ethers.parseUnits("30", "gwei");
+    const result = await new Gateway(cropLedgerContract(domain.verifyingContract, poor), domain).submit(signed, {
+      callProvider: ethers.provider,
+      currencySymbol: "POL",
+      fees: async () => ({ maxPriorityFeePerGas: tip, maxFeePerGas: tip * 2n, source: "test" }),
+      onUpdate: (u) => stages.push(u.stage),
+    });
+    expect(result.stage).to.equal("failed");
+    expect(result.error?.kind).to.equal("insufficient-funds");
+    expect(result.error?.message).to.match(/Not enough POL for gas: this transaction can cost up to .* POL, but .* holds 0\.001 POL/);
+    expect(stages).to.not.include("awaiting-wallet");
+  });
+
   it("refuses to operate on unsupported chains", function () {
     expect(() => new Gateway(cropLedgerContract(Wallet.createRandom().address, ethers.provider), {
       chainId: 137n,

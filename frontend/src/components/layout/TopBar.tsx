@@ -5,7 +5,7 @@ import { useLedger } from "../../state/LedgerContext";
 import { useSettings } from "../../state/SettingsContext";
 import { useToast } from "../../state/ToastContext";
 import { useWallet } from "../../state/WalletContext";
-import { shortHex } from "../../utils/format";
+import { APPROX_READING_COST_WEI, formatNative, shortHex } from "../../utils/format";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { CopyButton } from "../ui/HashText";
@@ -33,6 +33,10 @@ function ModeBadge() {
 function WalletControl() {
   const wallet = useWallet();
   const { settings } = useSettings();
+  const { walletBalance } = useLedger();
+  const symbol = getNetwork(settings.chainId)?.nativeCurrency.symbol ?? "ETH";
+  const showBalance = settings.mode === "network" && walletBalance !== null && wallet.chainId === settings.chainId;
+  const lowBalance = showBalance && walletBalance! < APPROX_READING_COST_WEI * 3n;
   const { notify } = useToast();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -78,6 +82,11 @@ function WalletControl() {
   const wrongNetwork = settings.mode === "network" && wallet.chainId !== settings.chainId;
   return (
     <div className="flex items-center gap-2" ref={menuRef}>
+      {lowBalance && (
+        <Badge tone="warning" dot title={`Gas money is low: about ${formatNative(APPROX_READING_COST_WEI, symbol)} is needed per reading. Use a faucet.`}>
+          Low {symbol}
+        </Badge>
+      )}
       {wrongNetwork && (
         <Button
           size="sm"
@@ -100,6 +109,7 @@ function WalletControl() {
         >
           <span className={`size-2 rounded-full ${wrongNetwork ? "bg-danger-500" : "bg-forest-500"}`} />
           <span className="font-mono">{shortHex(wallet.account, 4)}</span>
+          {showBalance && <span className="tabular hidden text-ink-muted md:inline">· {formatNative(walletBalance!, symbol)}</span>}
           <span className="hidden text-ink-faint sm:inline">· {chainLabel(wallet.chainId ?? 0)}</span>
           <ChevronDown className="size-3.5 text-ink-faint" />
         </button>
@@ -110,6 +120,15 @@ function WalletControl() {
               {wallet.account}
               <CopyButton value={wallet.account} />
             </div>
+            {showBalance && (
+              <>
+                <p className="mt-3 text-[11px] font-medium tracking-wide text-ink-faint uppercase">Balance (pays gas)</p>
+                <p className="tabular mt-1 text-xs">
+                  {formatNative(walletBalance!, symbol)}{" "}
+                  <span className="text-ink-faint">≈ {(walletBalance! / APPROX_READING_COST_WEI).toString()} readings</span>
+                </p>
+              </>
+            )}
             <p className="mt-3 text-[11px] font-medium tracking-wide text-ink-faint uppercase">Wallet network</p>
             <p className="mt-1 text-xs">
               {chainLabel(wallet.chainId ?? 0)} <span className="text-ink-faint">(chain ID {wallet.chainId})</span>

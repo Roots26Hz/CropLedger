@@ -1,3 +1,4 @@
+import { formatEther } from "ethers";
 import { shortHex } from "@core/ids.js";
 
 export { shortHex };
@@ -41,3 +42,11 @@ export const fmt = {
   ph: (centi: number) => (centi / 100).toFixed(2),
   score: (milli: number) => (milli / 1000).toFixed(2),
 };
+
+/** Native-token amount (wei) for display, e.g. "0.0123 POL". */
+export function formatNative(wei: bigint, symbol: string): string {
+  return `${Number(formatEther(wei)).toLocaleString(undefined, { maximumSignificantDigits: 4 })} ${symbol}`;
+}
+
+/** Rough cost of one reading submission on Polygon (≈135k gas at ≈32 gwei). */
+export const APPROX_READING_COST_WEI = 135_000n * 32_000_000_000n;

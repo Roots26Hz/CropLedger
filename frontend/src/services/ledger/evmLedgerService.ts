@@ -52,7 +52,9 @@ export class EvmLedgerService implements LedgerService {
     this.domain = { chainId: BigInt(options.chainId), verifyingContract: options.address };
     // staticNetwork: trust the configured chain and skip eth_chainId on every
     // request; diagnostics verify the RPC's real chain ID separately.
-    this.provider = new JsonRpcProvider(options.rpcUrl, Network.from(options.chainId), { staticNetwork: true });
+    // batchMaxCount 1: free public RPCs (e.g. dRPC's free plan) refuse
+    // JSON-RPC batches, which ethers would otherwise send for parallel reads.
+    this.provider = new JsonRpcProvider(options.rpcUrl, Network.from(options.chainId), { staticNetwork: true, batchMaxCount: 1 });
     this.contract = cropLedgerContract(options.address, this.provider);
     this.getSigner = options.signerSource;
   }
@@ -136,6 +138,8 @@ export class EvmLedgerService implements LedgerService {
       ...options,
       fees: () => suggestFees(this.network, { provider: this.provider }),
       receiptProvider: this.provider,
+      callProvider: this.provider,
+      currencySymbol: this.network.nativeCurrency.symbol,
     };
   }
 
@@ -199,6 +203,10 @@ export class EvmLedgerService implements LedgerService {
     if (!log) return null;
     const receipt = await this.provider.getTransactionReceipt(log.transactionHash);
     return { txHash: log.transactionHash as Hex, gasUsed: receipt?.gasUsed ?? 0n, from: receipt?.from ?? "" };
+  }
+
+  async getBalance(address: string): Promise<bigint> {
+    return this.provider.getBalance(address);
   }
 
   async getBlockNumber(): Promise<number> {

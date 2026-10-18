@@ -109,7 +109,8 @@ async function connect(networkName: string, contractAddress?: string): Promise<C
     console.warn(`AMOY_RPC_URL ${rpcUrl} has been shut down; using ${POLYGON_AMOY.defaultRpcUrl}. Update your .env.`);
     rpcUrl = POLYGON_AMOY.defaultRpcUrl;
   }
-  const provider = new JsonRpcProvider(rpcUrl, undefined, { staticNetwork: true });
+  // batchMaxCount 1: free public RPCs refuse JSON-RPC batches.
+  const provider = new JsonRpcProvider(rpcUrl, undefined, { staticNetwork: true, batchMaxCount: 1 });
   let chainId: bigint;
   try {
     chainId = (await provider.getNetwork()).chainId;
@@ -151,7 +152,13 @@ async function connect(networkName: string, contractAddress?: string): Promise<C
 /** Fee and receipt options for writes on this connection (Amoy needs a fee floor). */
 function writeOptions(conn: Connection, onUpdate?: (u: SubmissionUpdate) => void): SubmitOptions {
   const network = conn.networkName === "amoy" ? POLYGON_AMOY : HARDHAT_LOCAL;
-  return { onUpdate, fees: () => suggestFees(network, { provider: conn.provider }), receiptProvider: conn.provider };
+  return {
+    onUpdate,
+    fees: () => suggestFees(network, { provider: conn.provider }),
+    receiptProvider: conn.provider,
+    callProvider: conn.provider,
+    currencySymbol: network.nativeCurrency.symbol,
+  };
 }
 
 async function lastNonceOnChain(conn: Connection, deviceId: string): Promise<number | null> {

@@ -38,6 +38,8 @@ export interface LedgerService {
   /** Network mode: find the transaction that recorded a reading. */
   findReadingTransaction?(deviceId: Hex, index: number, blockNumber: bigint): Promise<{ txHash: Hex; gasUsed: bigint; from: string } | null>;
   getBlockNumber?(): Promise<number>;
+  /** Network mode: native-token balance of an address (wei). */
+  getBalance?(address: string): Promise<bigint>;
   getRecentBlocks?(count: number): Promise<BlockSummary[]>;
   getBlock?(blockNumber: number): Promise<BlockSummary | null>;
 }

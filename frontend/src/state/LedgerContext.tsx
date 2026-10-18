@@ -38,6 +38,8 @@ interface LedgerContextValue {
   owner: string | null;
   totalReadings: number;
   blockNumber: number | null;
+  /** Connected account's native-token balance in wei (network mode). */
+  walletBalance: bigint | null;
   lastUpdated: number | null;
   /** Increments whenever ledger data may have changed (pages refetch). */
   dataVersion: number;
@@ -171,6 +173,30 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
       clearInterval(timer);
     };
   }, [service, refresh]);
+
+  // Network mode: the connected account's native-token balance (gas money).
+  const [walletBalance, setWalletBalance] = useState<bigint | null>(null);
+  useEffect(() => {
+    setWalletBalance(null);
+    const account = wallet.account;
+    if (!service || service.kind !== "evm" || !service.getBalance || !account) return;
+    let cancelled = false;
+    const load = async () => {
+      if (document.hidden) return;
+      try {
+        const balance = await service.getBalance!(account);
+        if (!cancelled) setWalletBalance(balance);
+      } catch {
+        // Shown as unknown.
+      }
+    };
+    void load();
+    const timer = setInterval(load, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [service, wallet.account, dataVersion]);
 
   const getReadings = useCallback(async (deviceId: Hex) => {
     const svc = serviceRef.current;
@@ -313,6 +339,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
       owner,
       totalReadings,
       blockNumber,
+      walletBalance,
       lastUpdated,
       dataVersion,
       txs,
@@ -327,7 +354,7 @@ export function LedgerProvider({ children }: { children: ReactNode }) {
       addDeviceKey,
       forgetDeviceKeys,
     }),
-    [service, status, error, devices, owner, totalReadings, blockNumber, lastUpdated, dataVersion, txs, writeBlocker, ownerBlocker, refresh, getReadings, runWrite, clearTxs, evidence, deviceKeys, addDeviceKey, forgetDeviceKeys],
+    [service, status, error, devices, owner, totalReadings, blockNumber, walletBalance, lastUpdated, dataVersion, txs, writeBlocker, ownerBlocker, refresh, getReadings, runWrite, clearTxs, evidence, deviceKeys, addDeviceKey, forgetDeviceKeys],
   );
 
   return <LedgerContext.Provider value={value}>{children}</LedgerContext.Provider>;

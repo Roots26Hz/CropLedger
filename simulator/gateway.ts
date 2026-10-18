@@ -15,6 +15,7 @@
  */
 import {
   Contract,
+  formatEther,
   getAddress,
   type ContractRunner,
   type ContractTransactionResponse,
@@ -75,6 +76,15 @@ export interface SubmitOptions {
   receiptProvider?: ContractRunner["provider"];
   /** How long to wait for a receipt when following by hash (default 3 min). */
   receiptTimeoutMs?: number;
+  /**
+   * Independent read provider for the preflight, the gas estimate and a
+   * balance check, all done before the wallet is asked to sign. The wallet
+   * then receives an explicit gas limit. Without it, the signer's own
+   * provider is used (e.g. in tests and on the CLI's local node).
+   */
+  callProvider?: ContractRunner["provider"];
+  /** Native token symbol for balance messages (default "ETH"). */
+  currencySymbol?: string;
   onUpdate?: (update: SubmissionUpdate) => void;
 }
 
@@ -183,32 +193,82 @@ export async function sendTracked(
   };
   const finish = (update: Omit<SubmissionUpdate, "at">, ok: boolean): SubmissionResult => ({ ...emit(update), ok });
   const fn = contract.getFunction(functionName);
+  const rejected = (error: unknown) => {
+    const decoded = decodeError(error);
+    return finish({ stage: decoded.kind === "contract" ? "rejected-preflight" : "failed", error: decoded }, false);
+  };
+
+  // With an independent read provider, simulate and estimate from the
+  // sender's address there instead of through the wallet.
+  const reader = options.callProvider ?? undefined;
+  const sender = reader ? await (contract.runner as { getAddress?: () => Promise<string> } | null)?.getAddress?.() : undefined;
+  const call = reader && sender ? { to: await contract.getAddress(), from: sender, data: contract.interface.encodeFunctionData(functionName, args) } : undefined;
 
   // Preflight: simulate the call so contract rejections are reported
   // before the user is asked to pay gas.
   if (!options.forceBroadcast) {
     emit({ stage: "preflight" });
     try {
-      await fn.staticCall(...args);
+      if (reader && call) await reader.call(call);
+      else await fn.staticCall(...args);
     } catch (error) {
-      const decoded = decodeError(error);
-      return finish({ stage: decoded.kind === "contract" ? "rejected-preflight" : "failed", error: decoded }, false);
+      return rejected(error);
     }
   }
 
   // Propose fees the network will accept (the wallet may still adjust them).
   const overrides: Record<string, unknown> = options.forceBroadcast ? { gasLimit: options.forcedGasLimit ?? 300_000n } : {};
   let feeNote: string | undefined;
+  let feeCap: bigint | undefined;
   if (options.fees) {
     try {
       const fees = await options.fees();
       if (fees) {
         overrides.maxFeePerGas = fees.maxFeePerGas;
         overrides.maxPriorityFeePerGas = fees.maxPriorityFeePerGas;
+        feeCap = fees.maxFeePerGas;
         feeNote = `Suggested priority fee ${formatGwei(fees.maxPriorityFeePerGas)} (${fees.source})`;
       }
     } catch {
       // Let the wallet choose.
+    }
+  }
+
+  // Gas limit and balance check before the wallet opens: a node refuses to
+  // estimate gas the sender cannot pay for, which wallets surface as an
+  // opaque error, so check it here and say so plainly.
+  if (reader && call) {
+    try {
+      if (!options.forceBroadcast) {
+        const estimate = await reader.estimateGas(call);
+        overrides.gasLimit = estimate + estimate / 5n;
+      }
+      const gasLimit = overrides.gasLimit as bigint;
+      if (feeCap === undefined) {
+        const data = await reader.getFeeData();
+        feeCap = data.maxFeePerGas ?? data.gasPrice ?? undefined;
+      }
+      if (feeCap !== undefined) {
+        const worstCase = gasLimit * feeCap;
+        const balance = await reader.getBalance(call.from);
+        if (balance < worstCase) {
+          const symbol = options.currencySymbol ?? "ETH";
+          const fmt = (wei: bigint) => Number(formatEther(wei)).toLocaleString(undefined, { maximumSignificantDigits: 3 });
+          return finish(
+            {
+              stage: "failed",
+              error: {
+                kind: "insufficient-funds",
+                message: `Not enough ${symbol} for gas: this transaction can cost up to ${fmt(worstCase)} ${symbol}, but ${call.from.slice(0, 8)}… holds ${fmt(balance)} ${symbol}. Top it up from a faucet, then retry.`,
+                detail: `gasLimit ${gasLimit} × maxFeePerGas ${feeCap} wei = ${worstCase} wei; balance ${balance} wei`,
+              },
+            },
+            false,
+          );
+        }
+      }
+    } catch (error) {
+      return rejected(error);
     }
   }
 
