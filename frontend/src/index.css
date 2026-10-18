@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   CropLedger design tokens
+   Agricultural technology meets blockchain: warm paper neutrals, forest
+   greens for trust/success, soil amber for caution, chain blue for on-chain
+   facts. Light theme tuned for projectors and printouts.
+   --------------------------------------------------------------------------- */
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-paper: #f5f4ee;
+  --color-surface: #ffffff;
+  --color-surface-2: #fafaf6;
+  --color-line: #e4e2d8;
+  --color-line-strong: #d3d0c3;
+
+  --color-ink: #1b2a21;
+  --color-ink-muted: #56665b;
+  --color-ink-faint: #85918a;
+
+  --color-forest-50: #eef6f0;
+  --color-forest-100: #d8ebde;
+  --color-forest-200: #b3d7bf;
+  --color-forest-300: #82bc96;
+  --color-forest-400: #4f9c6b;
+  --color-forest-500: #2f8253;
+  --color-forest-600: #216a42;
+  --color-forest-700: #1a5535;
+  --color-forest-800: #15412a;
+  --color-forest-900: #14261c;
+  --color-forest-950: #0d1a13;
+
+  --color-soil-50: #fbf4e5;
+  --color-soil-100: #f5e3bd;
+  --color-soil-500: #c1861a;
+  --color-soil-600: #9c6a10;
+  --color-soil-700: #7a520c;
+
+  --color-chain-50: #ebf2f9;
+  --color-chain-100: #d3e2f1;
+  --color-chain-500: #3a6ea5;
+  --color-chain-600: #2d5884;
+  --color-chain-700: #23466a;
+
+  --color-danger-50: #fdeeec;
+  --color-danger-100: #f9d6d1;
+  --color-danger-500: #c8372a;
+  --color-danger-600: #a92a1f;
+  --color-danger-700: #861f16;
+
+  /* Nutrient series (colour-blind distinguishable: green / ochre / indigo) */
+  --color-npk-n: #2f8253;
+  --color-npk-p: #c1861a;
+  --color-npk-k: #4f63b0;
+
+  --shadow-card: 0 1px 2px rgb(27 42 33 / 0.05), 0 1px 1px rgb(27 42 33 / 0.03);
+  --shadow-pop: 0 10px 30px -10px rgb(27 42 33 / 0.25);
+
+  --animate-pulse-soft: pulse-soft 2.4s ease-in-out infinite;
+  --animate-fade-in: fade-in 0.25s ease-out both;
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-paper text-ink font-sans;
+    font-feature-settings: "cv11", "ss01";
+  }
+  ::selection {
+    background: var(--color-forest-200);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-forest-500);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
