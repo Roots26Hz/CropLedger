@@ -39,4 +39,5 @@ export interface LedgerService {
   findReadingTransaction?(deviceId: Hex, index: number, blockNumber: bigint): Promise<{ txHash: Hex; gasUsed: bigint; from: string } | null>;
   getBlockNumber?(): Promise<number>;
   getRecentBlocks?(count: number): Promise<BlockSummary[]>;
+  getBlock?(blockNumber: number): Promise<BlockSummary | null>;
 }

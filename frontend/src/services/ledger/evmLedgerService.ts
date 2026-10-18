@@ -193,17 +193,21 @@ export class EvmLedgerService implements LedgerService {
   async getRecentBlocks(count: number): Promise<BlockSummary[]> {
     const latest = await this.provider.getBlockNumber();
     const numbers = Array.from({ length: Math.min(count, latest + 1) }, (_, i) => latest - i);
-    const blocks = await Promise.all(numbers.map((n) => this.provider.getBlock(n)));
-    return blocks
-      .filter((b): b is NonNullable<typeof b> => b !== null)
-      .map((b) => ({
-        number: b.number,
-        timestamp: b.timestamp,
-        hash: b.hash ?? "",
-        txCount: b.transactions.length,
-        gasUsed: b.gasUsed,
-        gasLimit: b.gasLimit,
-        miner: b.miner,
-      }));
+    const blocks = await Promise.all(numbers.map((n) => this.getBlock(n)));
+    return blocks.filter((b): b is BlockSummary => b !== null);
+  }
+
+  async getBlock(blockNumber: number): Promise<BlockSummary | null> {
+    const b = await this.provider.getBlock(blockNumber);
+    if (!b) return null;
+    return {
+      number: b.number,
+      timestamp: b.timestamp,
+      hash: b.hash ?? "",
+      txCount: b.transactions.length,
+      gasUsed: b.gasUsed,
+      gasLimit: b.gasLimit,
+      miner: b.miner,
+    };
   }
 }
