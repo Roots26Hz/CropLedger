@@ -1,0 +1,35 @@
+{
+  "name": "cropledger",
+  "version": "1.0.0",
+  "private": true,
+  "description": "An end-to-end blockchain application for recording, authenticating, and verifying crop-field sensor readings using Solidity, React, MetaMask, and the Polygon Amoy testnet.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "compile": "hardhat build",
+    "test:contracts": "hardhat test mocha",
+    "node": "hardhat node",
+    "typecheck:root": "hardhat build && tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "4.2.1",
+    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "4.0.0",
+    "@types/chai": "5.2.3",
+    "@types/chai-as-promised": "8.0.2",
+    "@types/mocha": "10.0.10",
+    "@types/node": "24.19.2",
+    "chai": "6.2.2",
+    "ethers": "6.17.0",
+    "hardhat": "3.20.0",
+    "mocha": "12.0.0",
+    "tsx": "4.23.15",
+    "typescript": "6.0.3"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "5.6.1"
+  }
+}
