@@ -21,6 +21,7 @@
     "test": "npm run test:contracts && npm run test:unit",
     "sim": "tsx simulator/cli.ts",
     "deploy:local": "hardhat run scripts/deploy-local.ts",
+    "fund:local": "tsx scripts/fund-local.ts",
     "deploy:amoy": "hardhat run scripts/deploy-testnet.ts",
     "dev": "npm run dev -w frontend",
     "build": "npm run build -w frontend",
