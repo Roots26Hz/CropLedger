@@ -24,6 +24,7 @@ The Solidity source is shown **only in Remix**. The dashboard never displays Sol
 12. [Verify the reading](#12-verify-the-reading)
 13. [Show that tampering and replays are rejected](#13-show-that-tampering-and-replays-are-rejected)
 14. [Troubleshooting](#14-troubleshooting)
+15. [No test POL? Same demo on a local Hardhat chain](#15-no-test-pol-same-demo-on-a-local-hardhat-chain)
 
 ---
 
@@ -32,7 +33,7 @@ The Solidity source is shown **only in Remix**. The dashboard never displays Sol
 | Item | Notes |
 |---|---|
 | Browser with **MetaMask** | Chrome, Brave, Edge or Firefox with the MetaMask extension. Use a **testnet-only account**; never use an account that holds real funds. |
-| **Amoy test POL** | Gas on Amoy is paid in test POL (no real value). See [step 4.3](#43-get-test-pol) for faucets; about 0.1 POL is enough for this whole guide. |
+| **Amoy test POL** | Gas on Amoy is paid in test POL (no real value). See [step 4.3](#43-get-test-pol) for faucets. One 0.1 POL faucet drip covers **one** deployment and about ten readings, so deploy once and reuse the contract ([step 6.1](#61-deploy-once-reuse-it-on-later-days)). Out of POL? Run the same steps on a local chain ([section 15](#15-no-test-pol-same-demo-on-a-local-hardhat-chain)). |
 | This repository | `git clone https://github.com/Roots26Hz/CropLedger.git`, then `npm install` (see [README](README.md#installation)). Needed for the dashboard and for generating device signatures. |
 | [Remix IDE](https://remix.ethereum.org/) | Web version, nothing to install. |
 
@@ -154,7 +155,9 @@ curl -s -X POST -H "content-type: application/json" --data '{"jsonrpc":"2.0","id
    - QuickNode: <https://faucet.quicknode.com/polygon/amoy> (wallet connection; limited drips per day).
 3. Wait 1–2 minutes. The balance appears in MetaMask, and you can confirm it at `https://amoy.polygonscan.com/address/<your address>`.
 
-About **0.1 POL** is plenty for deploying the contract and running the whole demo. If every faucet refuses, ask your instructor or a classmate to send you a little Amoy POL (it has no real value) — or continue rehearsing with the local Hardhat chain ([docs/DEMO_GUIDE.md](docs/DEMO_GUIDE.md), setup B) until you have tokens.
+**How far 0.1 POL goes.** Deploying CropLedger uses about 1.57 million gas: roughly **0.05 POL** at Polygon's ~30 gwei minimum fee, and MetaMask wants more than that available before it sends (it reserves gas × its maximum fee). A reading then costs about 0.004 POL and a revocation about 0.0012 POL. So one faucet drip covers **one** deployment plus about ten readings. Deploy once and reuse the contract on later days ([step 6.1](#61-deploy-once-reuse-it-on-later-days)).
+
+If every faucet refuses or is on cooldown, ask your instructor or a classmate to send you a little Amoy POL (it has no real value), or run the same Remix demo on the local Hardhat chain ([section 15](#15-no-test-pol-same-demo-on-a-local-hardhat-chain)), which needs no tokens at all.
 
 **Done when:** MetaMask shows *Polygon Amoy Testnet* and a POL balance above 0.
 
@@ -178,6 +181,20 @@ About **0.1 POL** is plenty for deploying the contract and running the whole dem
 5. Under **Deployed Contracts**, the new instance appears. Copy its **address** with the copy icon. Note the **block number** too.
 
 > Do not deploy to Polygon mainnet. CropLedger's dashboard refuses every chain except Amoy (80002) and local Hardhat (31337).
+
+### 6.1 Deploy once, reuse it on later days
+
+A deployed contract stays on Amoy permanently. You do **not** need to deploy again for each rehearsal or for the demo; a new deployment costs about 0.05 POL and starts an empty device registry.
+
+To open your existing contract in Remix (free, no transaction):
+
+1. Compile as in [step 3](#3-compile) (same source and settings).
+2. **Deploy & Run Transactions** → Environment *Injected Provider – MetaMask* on Amoy → Contract `CropLedger`.
+3. Paste your contract address into the field next to **At Address** and click **At Address**. The instance appears under *Deployed Contracts* with all its functions, and the devices and readings recorded earlier are still there.
+
+The dashboard remembers the address in the browser (System Configuration). To keep it across browsers, put it in `.env` as `VITE_CONTRACT_ADDRESS` ([step 8.1](#81-contract-address-always-needed)).
+
+**Lost the address?** Open `https://amoy.polygonscan.com/address/<your MetaMask address>`: the transaction marked *Contract Creation* links to it. MetaMask's *Activity* tab on Amoy also lists the *Contract deployment*.
 
 ---
 
@@ -341,7 +358,7 @@ Remix decodes custom errors because they are part of the ABI. The dashboard's **
 | `ParserError: Source not found` for OpenZeppelin | Wait for Remix to fetch `.deps`, check your connection, or use `npm run flatten` and upload the flattened file. |
 | Compiler error about pragma | Select compiler `0.8.24` or newer (recommended `0.8.34`). |
 | Remix shows another network | Switch MetaMask to Amoy; reselect *Injected Provider – MetaMask*. |
-| *insufficient funds* | Get test POL from a faucet ([step 4.3](#43-get-test-pol)); wait for it to arrive. |
+| *insufficient funds* (also in MetaMask when deploying) | Get test POL from a faucet ([step 4.3](#43-get-test-pol)); wait for it to arrive. Before deploying again, check whether you can reuse your earlier deployment ([step 6.1](#61-deploy-once-reuse-it-on-later-days)). Faucet on cooldown? Use the local Hardhat chain ([section 15](#15-no-test-pol-same-demo-on-a-local-hardhat-chain)). |
 | Reading shows **Failed** right after you confirm in MetaMask — *"gas fee was too low"* / *transaction underpriced … minimum needed 25000000000* | Polygon's 25 gwei minimum priority fee. Update the project (`git pull`) so the dashboard proposes a compliant fee, keep MetaMask's *Site suggested* fee, then press **Retry** on the row. |
 | **Failed** with *nonce … out of sync* | MetaMask's transaction counter disagrees with the chain (stuck earlier transaction, or a restarted local chain). MetaMask → Settings → Advanced → **Clear activity tab data**, then Retry. |
 | **Failed** — *"Not enough POL for gas: this transaction can cost up to X POL, but … holds Y POL"* (also shown as **Low POL** in the top bar) | The account that pays gas is almost empty. Deploying from Remix can use a large share of a faucet drip if MetaMask picks a high fee. Top up from a faucet ([step 4.3](#43-get-test-pol)); System Configuration → *Run checks* shows the balance and roughly how many readings it covers. A reading needs about 0.004 POL, a revocation about 0.0012 POL. |
@@ -353,3 +370,30 @@ Remix decodes custom errors because they are part of the ABI. The dashboard's **
 | `InvalidTimestamp` | Arguments are stale or your clock is wrong; regenerate them. |
 | Dashboard says *No contract code* | Wrong address or network in System Configuration. |
 | Dashboard RPC errors, or *free plan* / *batch* messages | The dashboard sends one request at a time because free plans (e.g. dRPC's) refuse JSON-RPC batches. If the public RPC is rate-limited or down, in System Configuration set another Amoy endpoint (e.g. `https://polygon-amoy-bor-rpc.publicnode.com`), or change `VITE_RPC_URL` (public or domain-restricted key only). |
+
+---
+
+## 15. No test POL? Same demo on a local Hardhat chain
+
+Faucets give about 0.1 POL a day, which runs out quickly while rehearsing. A local Hardhat chain runs the **same contract, the same Remix steps and the same MetaMask confirmations** on your laptop, with as much test ETH as you need. You lose the public part: there is no Polygonscan page and nobody else can see the transactions. Tell your audience which chain you are using; the dashboard's top bar shows *Hardhat Local Node*.
+
+1. **Start the chain** and keep this terminal open for the whole session:
+   ```bash
+   npm run node
+   ```
+   It prints 20 built-in development accounts. You don't need them: your own MetaMask account gets test ETH in step 3.
+2. **Point MetaMask at it.** Run `npm run dev`, open System Configuration, choose Network *Hardhat Local Node (31337)* and click **Add / switch to Hardhat**, then approve in MetaMask. To add it by hand instead, use RPC `http://127.0.0.1:8545`, chain ID `31337` and symbol `ETH`.
+3. **Give your MetaMask account test ETH** from a second terminal. System Configuration shows this command with your address filled in and a copy button:
+   ```bash
+   npm run fund:local -- 0xYourMetaMaskAddress
+   ```
+   MetaMask now shows 100 ETH on Hardhat Local. It has no value and exists only on your laptop.
+4. **Deploy from Remix** exactly as in [steps 5–6](#5-connect-remix-to-metamask). Choose Environment *Injected Provider – MetaMask*; Remix shows *Custom (31337) network* with your 100 ETH. Set `initialOwner` to your MetaMask address, click **Deploy** and **Confirm**. The transaction is mined instantly. Skip step 7: there is no explorer.
+5. **Connect the dashboard** as in [step 8.1](#81-contract-address-always-needed), with Network *Hardhat Local Node (31337)*: paste the address, **Save settings**, **Run checks**.
+6. Continue with steps 9–13 unchanged. Explorer links are not shown on a local chain.
+
+**Good to know**
+
+- The chain lives in memory. Stopping `npm run node`, or closing the terminal or the laptop, erases it. Repeat steps 1, 3, 4 and 5 (about two minutes, free). Then reset MetaMask's transaction counter with Settings → Advanced → **Clear activity tab data**, or MetaMask reports a nonce error.
+- For a quick rehearsal without Remix, `OWNER_ADDRESS=0xYourMetaMaskAddress npm run deploy:local` deploys and funds your account in one command ([docs/DEMO_GUIDE.md](docs/DEMO_GUIDE.md), setup B).
+- To go back to Amoy, select *Polygon Amoy Testnet* in System Configuration, paste your Amoy contract address again, and switch MetaMask back to Amoy.

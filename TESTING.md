@@ -27,7 +27,7 @@ No `.env`, wallet, testnet RPC or deployed contract is needed: contract tests ru
 | Check | Result |
 |---|---|
 | Contract / gateway / parity tests (Hardhat) | **54 passing**, 0 failing |
-| Unit tests (Vitest, 8 files) | **70 passed**, 0 failed |
+| Unit tests (Vitest, 8 files) | **71 passed**, 0 failed |
 | Type check (root + frontend) | pass |
 | Lint | pass (0 problems) |
 | ABI drift check | `abi/CropLedger.json matches the compiled contract.` |
@@ -35,7 +35,7 @@ No `.env`, wallet, testnet RPC or deployed contract is needed: contract tests ru
 | Clean clone (`git clone` → `npm ci` → `abi:check` → `npm test` → typecheck → lint → build) | pass |
 | GitHub Actions CI | **passed** — [run 39147522825](https://github.com/Roots26Hz/CropLedger/actions/runs/39147522825) (39 s); later pushes run the same workflow |
 
-**Total automated tests: 124** (54 + 70).
+**Total automated tests: 125** (54 + 71).
 
 ### Gas used (measured on the Hardhat in-process network)
 
@@ -43,6 +43,7 @@ Printed by the contract test suite after each run:
 
 | Operation | Gas used |
 |---|---|
+| Deployment (constructor) | 1 568 969 |
 | `registerDevice` | 184 247 |
 | `submitReading`, first reading of a device | 134 230 – 134 254 (varies by a few dozen gas with signature bytes) |
 | `submitReading`, later readings | 100 030 – 100 054 |
@@ -72,13 +73,13 @@ Every signed reading in these tests is produced by the project's own TypeScript 
 ### 4.2 Gateway integration — `test/gateway.test.ts` (11)
 
 Simulated device + gateway against a deployed contract:
-stages `validating → preflight → awaiting-wallet → submitted → confirmed` with tx hash, block and gas · replay stopped in preflight **without broadcasting** (sender nonce unchanged) · forced broadcast of a revoked device's reading is mined with status 0 and the reason `DeviceNotActive` is recovered · readings signed for another chain rejected before sending · payload edited after signing rejected · suggested EIP-1559 fees are passed to the wallet (checked on the mined transaction) · a transaction the wallet broadcast is still followed to *confirmed* when the wallet's provider fails afterwards · no receipt → *unconfirmed*, not *failed* · with a read provider, the wallet gets an explicit gas limit (estimate + 20 %) · an account that cannot pay gas × fee cap is stopped **before** the wallet with the amounts shown · unsupported chains (e.g. 137) refused.
+stages `validating → preflight → awaiting-wallet → submitted → confirmed` with tx hash, block and gas · replay stopped in preflight **without broadcasting** (sender nonce unchanged) · forced broadcast of a revoked device's reading is mined with status 0 and the reason `DeviceNotActive` is recovered · readings signed for another chain rejected before sending · payload edited after signing rejected · suggested EIP-1559 fees are passed to the wallet (checked on the mined transaction) · a transaction the wallet broadcast is still followed to *confirmed* when the wallet's provider fails afterwards · no receipt → *unconfirmed*, not *failed* · with a read provider, the wallet gets an explicit gas limit (estimate + 20 %) · an account that cannot pay gas × fee cap is stopped **before** the wallet with the amounts and the network's top-up hint shown · unsupported chains (e.g. 137) refused.
 
 ### 4.3 Local-mode parity — `test/parity.test.ts` (1 scenario, 19 checks)
 
 Runs one scripted scenario (unregistered, register, duplicate, valid, replay, gap, stale, forged key, altered value, zero timestamp, nutrient overflow, zero hash, genuine/tampered/out-of-range verification, revoke, post-revocation submit, double revoke, history) against the real contract **and** the in-browser `LocalLedger`, and requires identical outcomes. This keeps local demonstration mode honest.
 
-### 4.4 Unit tests (Vitest, 70)
+### 4.4 Unit tests (Vitest, 71)
 
 | File | Covers |
 |---|---|
@@ -86,7 +87,7 @@ Runs one scripted scenario (unregistered, register, duplicate, valid, replay, ga
 | `simulator/__tests__/signing.test.ts` (6) | type hash · sign + recover · message binds payload hash and IDs · altered message does not recover · domain separation (chain, contract) · submit-argument formatting |
 | `simulator/__tests__/deviceSimulator.test.ts` (9) | realistic ranges · monotonic nonce · chain re-sync · reproducibility · normal readings stay normal · spike, dropout and drift detected by the edge model · loop start/stop |
 | `simulator/__tests__/localLedger.test.ts` (4) | genuine reading · replay, unknown, forged, malformed, revoked · registry rules · snapshot/restore keeps replay protection |
-| `simulator/__tests__/networksAndErrors.test.ts` (16) | Amoy links use `amoy.polygonscan.com` (never mainnet) · no links for Hardhat · mainnets refused · retired Amoy RPC recognised · `wallet_addEthereumChain` params · custom-error decoding (direct and nested) · local errors · wallet rejection codes · MetaMask "Internal JSON-RPC error" unwrapped to the node's *transaction underpriced* message · nonce conflicts and rate limits · Polygon's *gas required exceeds allowance* treated as insufficient funds, not a revert · free-plan RPC refusals hidden in call exceptions · a data-less revert is never called "on-chain" · innermost message for unknown errors · RPC failures |
+| `simulator/__tests__/networksAndErrors.test.ts` (17) | Amoy links use `amoy.polygonscan.com` (never mainnet) · no links for Hardhat · mainnets refused · retired Amoy RPC recognised · top-up hint per chain (faucet on Amoy, `npm run fund:local` locally) · `wallet_addEthereumChain` params · custom-error decoding (direct and nested) · local errors · wallet rejection codes · MetaMask "Internal JSON-RPC error" unwrapped to the node's *transaction underpriced* message · nonce conflicts and rate limits · Polygon's *gas required exceeds allowance* treated as insufficient funds, not a revert · free-plan RPC refusals hidden in call exceptions · a data-less revert is never called "on-chain" · innermost message for unknown errors · RPC failures |
 | `simulator/__tests__/fees.test.ts` (6) | no fee policy → wallet decides · Polygon 25 gwei floor (+20 %) · higher gas-station tip used · RPC fallback · cap on runaway suggestions · floor when every source fails |
 | `frontend/src/config/env.test.ts` (6) | valid config · mainnet chain refused · invalid values reported · retired RPC replaced with a warning · empty = local mode · RPC URL masking |
 | `frontend/src/services/ledger/localLedgerService.test.ts` (5) | simulated lifecycle with `LOCAL-…` reference and no tx hash · replay rejected in preflight · gateway forgery · real-deployment signature rejected · history after revocation |
@@ -98,6 +99,7 @@ Runs one scripted scenario (unregistered, register, duplicate, valid, replay, ga
 | CLI on a live local chain | `npm run node`, `npm run deploy:local`, `npm run sim -- register / run / attack replay / attack unregistered / attack forged / attack revoked --confirm-revoke / verify / remix-args` | Readings confirmed in blocks with tx hashes; replay → `StaleNonce`, unregistered → `UnknownDevice`, forged → `InvalidSignature`, revoked → `DeviceNotActive` with history kept; genuine payload *VERIFIED*, payload with N + 5 *MISMATCH* |
 | Dashboard, local demo mode | In-app browser: register device, bursts, spike injection, Verification Lab, all four attacks, Evidence Explorer, Transactions | All behaved as expected (see screenshot `docs/screenshots/local-demo-mode.png`) |
 | Dashboard, network mode (Hardhat) | Dashboard against `npm run node` with a **test-only EIP-1193 shim** that forwards wallet requests to the node's unlocked account (exercises the same BrowserProvider → `eth_sendTransaction` path as MetaMask; the shim is not part of the app) | Registration, 5 readings confirmed in blocks, verification true/false, attacks rejected; with *broadcast* enabled, attacks mined with status 0 and decoded reasons; lifecycle and recent blocks shown from real chain data |
+| Local chain without a faucet | `npm run node`, then `npm run fund:local -- <fresh address>`; that fresh account (never funded otherwise) deploys CropLedger with itself as owner, registers and revokes a device. Also `fund:local` with no node running and with an invalid address | 100 ETH received in block 1; deployment 1 568 969 gas, owner = funded account, both owner transactions status 1. Clear messages: *No local node answers … Start it first with `npm run node`* and the usage line |
 | Wallet-not-installed path | Dashboard with no injected wallet | "No wallet detected" badge; owner and submit actions disabled with reasons |
 
 Bugs found and fixed through these checks (see the git history): device auto-selection before ledger load and ID/key conflicts, late-injected wallets (EIP-6963 discovery added), missing revert reasons for mined failures, a race that skipped auto-submitted readings, and lifecycle wording for rejected operations.

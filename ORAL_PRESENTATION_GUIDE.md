@@ -183,7 +183,10 @@ A 4–6 minute live presentation **without slides**: you talk while showing Remi
 "An ESP32 or similar board would hold the signing key in a secure element, compute the same canonical payload and EIP-712 signature, and send it over LoRa or Wi-Fi to the gateway. The contract wouldn't change."
 
 **20. How did you test it?**
-"124 automated tests: 54 Hardhat tests for the contract, the gateway and the local-mode parity, and 70 unit tests for payloads, signing, the simulator and the frontend services. They run on every push in GitHub Actions."
+"125 automated tests: 54 Hardhat tests for the contract, the gateway and the local-mode parity, and 71 unit tests for payloads, signing, the simulator and the frontend services. They run on every push in GitHub Actions."
+
+**21. Why is part of the demo on a local chain? / What if you run out of test POL?**
+"The contract is deployed once on Amoy and reused; each reading costs about 0.004 test POL. Faucets only give about 0.1 POL a day, so when that runs out we run the same contract, the same Remix deployment and the same MetaMask confirmations on a local Hardhat chain. It's a real EVM with real transactions and receipts; only the public explorer is missing, and the dashboard says *Hardhat Local Node* so nobody mistakes it for the testnet."
 
 ---
 

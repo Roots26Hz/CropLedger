@@ -5,14 +5,16 @@ Step-by-step scripts for the six required scenarios, in three setups. Pick the s
 | Setup | Needs | Shows |
 |---|---|---|
 | **A. Polygon Amoy** (best for assessment) | MetaMask + test POL + your Remix deployment | Real public-testnet transactions and explorer links |
-| **B. Local Hardhat chain** | Nothing external | Real EVM transactions, blocks and receipts on your laptop (no explorer) |
+| **B. Local Hardhat chain** | MetaMask (no test POL needed) | The same Remix → MetaMask → dashboard flow with real EVM transactions, blocks and receipts on your laptop; free, unlimited test ETH (no explorer) |
 | **C. Local demonstration mode** | Nothing | Same rules, signatures and hashing in the browser; clearly labelled, no transactions |
+
+**Which setup on demo day?** Use **A** if the contract is already deployed on Amoy (deploy it **once**, beforehand, and reuse it: [Remix guide §6.1](../REMIX_DEPLOYMENT_GUIDE.md#61-deploy-once-reuse-it-on-later-days)) and MetaMask holds at least about **0.05 POL**. The six scenarios need a few transactions at about 0.004 POL per reading, 0.005 per registration and 0.0012 per revocation. If you are short of POL, or the faucet is on cooldown, use **B**: it is the same demo with free test ETH, only local. Keep **C** as the last resort. Whichever you use, say which one it is.
 
 ## 0. Before the demo (10 minutes)
 
 ```bash
 npm install          # once
-npm test             # optional: 124 tests should pass
+npm test             # optional: 125 tests should pass
 ```
 
 **Setup A** — follow [REMIX_DEPLOYMENT_GUIDE.md](../REMIX_DEPLOYMENT_GUIDE.md) §1–8 beforehand (§4 adds Amoy to MetaMask with the working RPC `https://polygon-amoy.drpc.org`), then `npm run dev`, open <http://localhost:5173>, connect MetaMask (Amoy), System Configuration → *Run checks* (all green). Keep Remix open in a second tab with the deployed contract.
@@ -20,12 +22,17 @@ npm test             # optional: 124 tests should pass
 **Setup B** — three terminals:
 
 ```bash
-npm run node                                   # terminal 1: local chain (keep running)
-OWNER_ADDRESS=0xYourMetaMaskAddress npm run deploy:local   # terminal 2
-npm run dev                                    # terminal 3
+npm run node                                    # terminal 1: local chain (keep running)
+npm run fund:local -- 0xYourMetaMaskAddress     # terminal 2: 100 local test ETH for MetaMask
+npm run dev                                     # terminal 3
 ```
 
-`deploy:local` makes your MetaMask address the owner and gives it 100 local test ETH. In MetaMask add a network *Hardhat Local*: RPC `http://127.0.0.1:8545`, chain ID `31337`, symbol `ETH` (or press *Switch to Hardhat* in the dashboard). In System Configuration choose *Hardhat Local Node*, paste the printed address, Save, Run checks.
+Switch MetaMask to *Hardhat Local* (System Configuration → Network *Hardhat Local Node* → **Add / switch to Hardhat**, or add RPC `http://127.0.0.1:8545`, chain ID `31337`, symbol `ETH`). Then deploy in one of two ways:
+
+- **From Remix** (shows the contract; use this in front of the faculty). *Injected Provider – MetaMask*, `initialOwner` = your MetaMask address, **Deploy**, **Confirm**. Step by step: [REMIX_DEPLOYMENT_GUIDE.md §15](../REMIX_DEPLOYMENT_GUIDE.md#15-no-test-pol-same-demo-on-a-local-hardhat-chain).
+- **One command** (quick rehearsal): `OWNER_ADDRESS=0xYourMetaMaskAddress npm run deploy:local`. It makes your MetaMask address the owner and funds it as well, so `fund:local` is not needed.
+
+In System Configuration choose *Hardhat Local Node*, paste the contract address, Save, Run checks.
 
 > MetaMask remembers nonces per network. If you restart `npm run node`, use MetaMask → Settings → Advanced → **Clear activity tab data** before sending again.
 

@@ -69,7 +69,7 @@ The original proposal is kept in [`CropLedger_README.md`](CropLedger_README.md).
 - **MetaMask**: connect/disconnect, EIP-6963 wallet discovery, account and network display, wrong-network detection with one-click switching, plain-language error messages. The app never asks for keys.
 - **Two clearly separated modes**: real blockchain (Polygon Amoy or a local Hardhat chain), or an in-browser **local demonstration mode** that applies the same rules (checked by a parity test) without pretending to be a blockchain.
 - **Safety rails**: only chain IDs 80002 (Amoy) and 31337 (Hardhat) are allowed, mainnets are refused, no secrets in the frontend, and RPC URLs are masked.
-- **124 automated tests**, plus linting, type checks and CI.
+- **125 automated tests**, plus linting, type checks and CI.
 
 ## 4. Architecture
 
@@ -147,6 +147,7 @@ CropLedger/
 │   └── __tests__/                  Vitest unit tests
 ├── scripts/
 │   ├── deploy-local.ts             deploy to `npm run node`
+│   ├── fund-local.ts               local test ETH for a MetaMask account
 │   ├── deploy-testnet.ts           optional CLI deployment to Amoy
 │   └── export-abi.ts               ABI export / drift check
 ├── test/                           Hardhat tests (contract, gateway, parity)
@@ -234,6 +235,7 @@ Against a **local Hardhat chain** (real transactions on your machine):
 ```bash
 npm run node                                         # terminal 1
 npm run deploy:local                                 # terminal 2
+npm run fund:local -- 0xYourMetaMaskAddress          # optional: 100 test ETH for MetaMask
 npm run sim -- register --device CL-DEV-0001
 npm run sim -- run --device CL-DEV-0001 --count 5 --interval 2
 npm run sim -- attack replay --device CL-DEV-0001
@@ -247,7 +249,7 @@ Against **Amoy**, add `--network amoy --contract 0x…` (needs `GATEWAY_PRIVATE_
 ## 12. Automated tests
 
 ```bash
-npm test               # all: Hardhat (54) + Vitest (70)
+npm test               # all: Hardhat (54) + Vitest (71)
 npm run test:contracts # contract, gateway and local-mode parity tests
 npm run test:unit      # payload, signing, simulator, networks, frontend services
 npm run typecheck
