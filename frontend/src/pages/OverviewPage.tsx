@@ -12,7 +12,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
-import { chainLabel, explorerAddressUrl, explorerTxUrl, getNetwork } from "@core/networks.js";
+import { HARDHAT_LOCAL, chainLabel, explorerAddressUrl, explorerTxUrl, getNetwork, topUpHint } from "@core/networks.js";
 import { PageHeader } from "../components/layout/PageHeader";
 import { NpkTrendChart } from "../components/NpkTrendChart";
 import { FAILURE_STAGES, StageBadge } from "../components/StageBadge";
@@ -237,7 +237,11 @@ export function OverviewPage() {
                   <KeyValue label="Balance">
                     <span className="tabular text-xs">
                       {formatNative(ledger.walletBalance, network?.nativeCurrency.symbol ?? "ETH")}{" "}
-                      {ledger.walletBalance < APPROX_READING_COST_WEI * 3n && <Badge tone="warning">low — use a faucet</Badge>}
+                      {ledger.walletBalance < APPROX_READING_COST_WEI * 3n && (
+                        <Badge tone="warning" title={`${topUpHint(network?.chainId ?? 0, wallet.account ?? undefined)}.`}>
+                          low — {network?.chainId === HARDHAT_LOCAL.chainId ? "run npm run fund:local" : "use a faucet"}
+                        </Badge>
+                      )}
                     </span>
                   </KeyValue>
                 )}

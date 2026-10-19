@@ -1,6 +1,6 @@
 import { ChevronDown, LogOut, Menu, RefreshCw, Wallet } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { chainLabel, getNetwork } from "@core/networks.js";
+import { chainLabel, getNetwork, topUpHint } from "@core/networks.js";
 import { useLedger } from "../../state/LedgerContext";
 import { useSettings } from "../../state/SettingsContext";
 import { useToast } from "../../state/ToastContext";
@@ -83,7 +83,7 @@ function WalletControl() {
   return (
     <div className="flex items-center gap-2" ref={menuRef}>
       {lowBalance && (
-        <Badge tone="warning" dot title={`Gas money is low: about ${formatNative(APPROX_READING_COST_WEI, symbol)} is needed per reading. Use a faucet.`}>
+        <Badge tone="warning" dot title={`Gas money is low: about ${formatNative(APPROX_READING_COST_WEI, symbol)} is needed per reading. ${topUpHint(settings.chainId, wallet.account)}.`}>
           Low {symbol}
         </Badge>
       )}

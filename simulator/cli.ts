@@ -20,7 +20,7 @@ import { Gateway, cropLedgerContract, type SubmissionUpdate, type SubmitOptions 
 import { firmwareHashFor, fromBytes32Id, isValidId, toBytes32Id } from "./ids.js";
 import { LocalLedger } from "./localLedger.js";
 import { hashPayload, parsePayloadJson, prettyPayload } from "./payload.js";
-import { HARDHAT_LOCAL, POLYGON_AMOY, assertSupportedChain, explorerTxUrl, isRetiredRpcUrl } from "./networks.js";
+import { HARDHAT_LOCAL, POLYGON_AMOY, assertSupportedChain, explorerTxUrl, isRetiredRpcUrl, topUpHint } from "./networks.js";
 import { signedReadingFromJson, signedReadingToJson, type SignedReadingJson } from "./serialization.js";
 import { LOCAL_DEMO_DOMAIN, signReading, toSubmitArgs } from "./signing.js";
 import type { DeploymentDomain, ReadingPayload, SignedReading } from "./types.js";
@@ -158,6 +158,7 @@ function writeOptions(conn: Connection, onUpdate?: (u: SubmissionUpdate) => void
     receiptProvider: conn.provider,
     callProvider: conn.provider,
     currencySymbol: network.nativeCurrency.symbol,
+    topUpHint: (address) => topUpHint(network.chainId, address),
   };
 }
 

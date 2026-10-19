@@ -211,12 +211,14 @@ describe("Gateway", function () {
     const result = await new Gateway(cropLedgerContract(domain.verifyingContract, poor), domain).submit(signed, {
       callProvider: ethers.provider,
       currencySymbol: "POL",
+      topUpHint: (address) => `Send POL to ${address}`,
       fees: async () => ({ maxPriorityFeePerGas: tip, maxFeePerGas: tip * 2n, source: "test" }),
       onUpdate: (u) => stages.push(u.stage),
     });
     expect(result.stage).to.equal("failed");
     expect(result.error?.kind).to.equal("insufficient-funds");
     expect(result.error?.message).to.match(/Not enough POL for gas: this transaction can cost up to .* POL, but .* holds 0\.001 POL/);
+    expect(result.error?.message).to.contain(`Send POL to ${poor.address}, then retry.`);
     expect(stages).to.not.include("awaiting-wallet");
   });
 

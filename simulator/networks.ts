@@ -98,6 +98,16 @@ export function isRetiredRpcUrl(chainId: number | bigint, url: string): boolean 
   return getNetwork(chainId)?.retiredRpcUrls.some((r) => r.toLowerCase() === normalized) ?? false;
 }
 
+/**
+ * How to get more gas tokens for `address` on this chain, phrased as the
+ * start of a sentence: a faucet on Amoy, the fund:local script locally.
+ */
+export function topUpHint(chainId: number | bigint, address = "<your address>"): string {
+  return Number(chainId) === HARDHAT_LOCAL.chainId
+    ? `Run npm run fund:local -- ${address} to add local test ETH`
+    : "Top it up from a faucet";
+}
+
 /** Throws if the chain is not an allowed testnet/local chain. */
 export function assertSupportedChain(chainId: number | bigint): NetworkConfig {
   const network = getNetwork(chainId);

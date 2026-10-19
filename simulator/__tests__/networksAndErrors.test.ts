@@ -13,6 +13,7 @@ import {
   isRetiredRpcUrl,
   isSupportedChain,
   POLYGON_AMOY,
+  topUpHint,
 } from "../networks.js";
 
 const TX = `0x${"ab".repeat(32)}`;
@@ -44,6 +45,12 @@ describe("network registry", () => {
     expect(isRetiredRpcUrl(80002, "https://rpc-amoy.polygon.technology/")).toBe(true);
     expect(isRetiredRpcUrl(80002, POLYGON_AMOY.defaultRpcUrl)).toBe(false);
     expect(isRetiredRpcUrl(31337, "https://rpc-amoy.polygon.technology")).toBe(false);
+  });
+
+  it("says how to get more gas tokens on each chain", () => {
+    expect(topUpHint(80002, "0xabc")).toBe("Top it up from a faucet");
+    expect(topUpHint(31337n, "0xabc")).toBe("Run npm run fund:local -- 0xabc to add local test ETH");
+    expect(topUpHint(31337)).toContain("<your address>");
   });
 
   it("builds wallet_addEthereumChain parameters", () => {

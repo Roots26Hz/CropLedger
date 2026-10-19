@@ -204,7 +204,8 @@ export function decodeError(err: unknown): DecodedError {
   if (isError(err, "INSUFFICIENT_FUNDS") || /insufficient funds|gas required exceeds allowance/i.test(all)) {
     return {
       kind: "insufficient-funds",
-      message: "The connected account does not have enough test tokens (POL on Amoy) to pay for this transaction's gas. Top it up from a faucet, then retry.",
+      message:
+        "The connected account does not have enough test tokens to pay for this transaction's gas. Top it up from a faucet (POL on Amoy) or with npm run fund:local (ETH on the local Hardhat chain), then retry.",
       detail,
     };
   }

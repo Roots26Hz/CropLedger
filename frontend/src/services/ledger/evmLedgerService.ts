@@ -9,7 +9,7 @@ import type { DecodedError } from "@core/errors.js";
 import { suggestFees } from "@core/fees.js";
 import { Gateway, cropLedgerContract, sendTracked, type SubmitOptions } from "@core/gateway.js";
 import { fromBytes32Id } from "@core/ids.js";
-import { assertSupportedChain, chainLabel, type NetworkConfig } from "@core/networks.js";
+import { assertSupportedChain, chainLabel, topUpHint, type NetworkConfig } from "@core/networks.js";
 import type { Hex, SignedReading, SubmitReadingArgs } from "@core/types.js";
 import type { BlockSummary, DeviceInfo, ReadingView } from "../../types/app";
 import type { LedgerResult, LedgerService, WriteOptions } from "./types";
@@ -140,6 +140,7 @@ export class EvmLedgerService implements LedgerService {
       receiptProvider: this.provider,
       callProvider: this.provider,
       currencySymbol: this.network.nativeCurrency.symbol,
+      topUpHint: (address) => topUpHint(this.network.chainId, address),
     };
   }
 

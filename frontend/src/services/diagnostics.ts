@@ -6,7 +6,7 @@
 import { Contract, JsonRpcProvider, formatEther, getAddress, isAddress } from "ethers";
 import { CROPLEDGER_ABI } from "@core/abi.js";
 import { decodeError } from "@core/errors.js";
-import { chainLabel, getNetwork } from "@core/networks.js";
+import { chainLabel, getNetwork, topUpHint } from "@core/networks.js";
 import { EIP712_NAME, EIP712_VERSION, READING_TYPEHASH } from "@core/signing.js";
 
 export type CheckStatus = "pass" | "warn" | "fail" | "skip";
@@ -139,7 +139,7 @@ export async function runDiagnostics(input: DiagnosticsInput): Promise<Check[]> 
         readings >= 5n ? "pass" : readings >= 1n ? "warn" : "fail",
         readings >= 1n
           ? `${amount} — enough for roughly ${readings.toString()} reading submissions.`
-          : `${amount} — not enough to pay for a reading. Get test ${network.nativeCurrency.symbol} from a faucet.`,
+          : `${amount} — not enough to pay for a reading. ${topUpHint(input.chainId, input.wallet.account)}.`,
       );
     } catch (error) {
       add("balance", "Wallet balance", "warn", decodeError(error).message);

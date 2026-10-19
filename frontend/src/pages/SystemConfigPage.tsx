@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { isAddress } from "ethers";
-import { HARDHAT_LOCAL, POLYGON_AMOY, chainLabel, explorerAddressUrl, getNetwork } from "@core/networks.js";
+import { HARDHAT_LOCAL, POLYGON_AMOY, chainLabel, explorerAddressUrl, getNetwork, topUpHint } from "@core/networks.js";
 import type { SignedReadingJson } from "@core/serialization.js";
 import { PageHeader } from "../components/layout/PageHeader";
 import { Badge } from "../components/ui/Badge";
@@ -27,7 +27,7 @@ import { Button } from "../components/ui/Button";
 import { Callout } from "../components/ui/Callout";
 import { Card, CardBody, CardHeader } from "../components/ui/Card";
 import { Field, Input, Select } from "../components/ui/Field";
-import { HashText } from "../components/ui/HashText";
+import { CopyButton, HashText } from "../components/ui/HashText";
 import { ConfirmDialog } from "../components/ui/Modal";
 import { ENV, maskRpcUrl } from "../config/env";
 import { runDiagnostics, type Check } from "../services/diagnostics";
@@ -152,10 +152,18 @@ export function SystemConfigPage() {
   // mode, so the wallet can be prepared before a contract is deployed.
   const selectedNetwork = getNetwork(chainId)!;
   const walletOnSelected = wallet.status === "connected" && wallet.chainId === chainId;
+  const fundCommand = `npm run fund:local -- ${wallet.account ?? "0xYourMetaMaskAddress"}`;
   const prepareWallet = async () => {
     if (wallet.status !== "connected" && !(await wallet.connect())) return;
     if (await wallet.switchNetwork(chainId)) {
-      notify({ tone: "success", title: `MetaMask is on ${selectedNetwork.name}`, message: chainId === POLYGON_AMOY.chainId ? "Next: get test POL from a faucet." : undefined });
+      notify({
+        tone: "success",
+        title: `MetaMask is on ${selectedNetwork.name}`,
+        message:
+          chainId === POLYGON_AMOY.chainId
+            ? "Next: get test POL from a faucet."
+            : `Next: ${topUpHint(chainId, wallet.account ?? undefined)} (in a terminal, while npm run node is running).`,
+      });
     }
   };
 
@@ -423,6 +431,17 @@ export function SystemConfigPage() {
                   </span>
                 ))}
                 .
+              </Callout>
+            )}
+            {chainId === HARDHAT_LOCAL.chainId && (
+              <Callout tone="info" title="Need local test ETH?">
+                The local Hardhat chain has no faucet. While <code className="font-mono text-[12px]">npm run node</code> is running, give your MetaMask account
+                100 test ETH from a second terminal:
+                <span className="mt-1 flex items-center gap-1 font-mono text-[12px] break-all">
+                  {fundCommand}
+                  <CopyButton value={fundCommand} />
+                </span>
+                The ETH lasts until the node stops; run the command again after restarting it.
               </Callout>
             )}
           </CardBody>

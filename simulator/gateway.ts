@@ -85,6 +85,8 @@ export interface SubmitOptions {
   callProvider?: ContractRunner["provider"];
   /** Native token symbol for balance messages (default "ETH"). */
   currencySymbol?: string;
+  /** How to get more gas tokens for an address (default: "Top it up from a faucet"). */
+  topUpHint?: (address: string) => string;
   onUpdate?: (update: SubmissionUpdate) => void;
 }
 
@@ -259,7 +261,7 @@ export async function sendTracked(
               stage: "failed",
               error: {
                 kind: "insufficient-funds",
-                message: `Not enough ${symbol} for gas: this transaction can cost up to ${fmt(worstCase)} ${symbol}, but ${call.from.slice(0, 8)}… holds ${fmt(balance)} ${symbol}. Top it up from a faucet, then retry.`,
+                message: `Not enough ${symbol} for gas: this transaction can cost up to ${fmt(worstCase)} ${symbol}, but ${call.from.slice(0, 8)}… holds ${fmt(balance)} ${symbol}. ${options.topUpHint?.(call.from) ?? "Top it up from a faucet"}, then retry.`,
                 detail: `gasLimit ${gasLimit} × maxFeePerGas ${feeCap} wei = ${worstCase} wei; balance ${balance} wei`,
               },
             },
