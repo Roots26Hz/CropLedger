@@ -170,6 +170,8 @@ If every faucet refuses or is on cooldown, ask your instructor or a classmate to
 3. MetaMask asks to connect the site → approve your testnet account.
 4. Remix now shows `Custom (80002) network` (or *Polygon Amoy*) under Environment, and your account with its POL balance under **Account**. If it shows another chain, switch MetaMask to Amoy.
 
+> **Using Remix Desktop (the installed app)?** It cannot reach MetaMask directly. Choosing the MetaMask environment opens your **default browser** at a bridge page such as `http://localhost:49589/`, and MetaMask asks to connect there. Keep that tab open while you work. MetaMask remembers a **separate network for each site**, so the bridge page keeps whatever network it was first connected on, whatever the dashboard tab uses. To change it, go to the bridge tab, open MetaMask and switch the network there (or use the site-connection icon at the top right of MetaMask). Then reselect the environment in Remix Desktop. Make sure your default browser is the one with MetaMask installed.
+
 ---
 
 ## 6. Deploy to Amoy
@@ -190,7 +192,7 @@ To open your existing contract in Remix (free, no transaction):
 
 1. Compile as in [step 3](#3-compile) (same source and settings).
 2. **Deploy & Run Transactions** → Environment *Injected Provider – MetaMask* on Amoy → Contract `CropLedger`.
-3. Paste your contract address into the field next to **At Address** and click **At Address**. The instance appears under *Deployed Contracts* with all its functions, and the devices and readings recorded earlier are still there.
+3. Under *Deployed Contracts* click **Add Contract**, paste your contract address and confirm (older Remix versions have an **At Address** button with an address field below *Deploy* instead). The instance appears under *Deployed Contracts* with all its functions, and the devices and readings recorded earlier are still there.
 
 The dashboard remembers the address in the browser (System Configuration). To keep it across browsers, put it in `.env` as `VITE_CONTRACT_ADDRESS` ([step 8.1](#81-contract-address-always-needed)).
 
@@ -357,7 +359,7 @@ Remix decodes custom errors because they are part of the ABI. The dashboard's **
 |---|---|
 | `ParserError: Source not found` for OpenZeppelin | Wait for Remix to fetch `.deps`, check your connection, or use `npm run flatten` and upload the flattened file. |
 | Compiler error about pragma | Select compiler `0.8.24` or newer (recommended `0.8.34`). |
-| Remix shows another network | Switch MetaMask to Amoy; reselect *Injected Provider – MetaMask*. |
+| Remix shows another network | Switch MetaMask to the right network **while the Remix tab is active**: MetaMask remembers a network per site. Then reselect *Injected Provider – MetaMask*. In Remix Desktop, the site is the bridge page it opened in your browser (`http://localhost:49589/`). On the local chain you can use *Hardhat Provider* instead ([section 15](#15-no-test-pol-same-demo-on-a-local-hardhat-chain), step 4). |
 | *insufficient funds* (also in MetaMask when deploying) | Get test POL from a faucet ([step 4.3](#43-get-test-pol)); wait for it to arrive. Before deploying again, check whether you can reuse your earlier deployment ([step 6.1](#61-deploy-once-reuse-it-on-later-days)). Faucet on cooldown? Use the local Hardhat chain ([section 15](#15-no-test-pol-same-demo-on-a-local-hardhat-chain)). |
 | Reading shows **Failed** right after you confirm in MetaMask — *"gas fee was too low"* / *transaction underpriced … minimum needed 25000000000* | Polygon's 25 gwei minimum priority fee. Update the project (`git pull`) so the dashboard proposes a compliant fee, keep MetaMask's *Site suggested* fee, then press **Retry** on the row. |
 | **Failed** with *nonce … out of sync* | MetaMask's transaction counter disagrees with the chain (stuck earlier transaction, or a restarted local chain). MetaMask → Settings → Advanced → **Clear activity tab data**, then Retry. |
@@ -388,7 +390,11 @@ Faucets give about 0.1 POL a day, which runs out quickly while rehearsing. A loc
    npm run fund:local -- 0xYourMetaMaskAddress
    ```
    MetaMask now shows 100 ETH on Hardhat Local. It has no value and exists only on your laptop.
-4. **Deploy from Remix** exactly as in [steps 5–6](#5-connect-remix-to-metamask). Choose Environment *Injected Provider – MetaMask*; Remix shows *Custom (31337) network* with your 100 ETH. Set `initialOwner` to your MetaMask address, click **Deploy** and **Confirm**. The transaction is mined instantly. Skip step 7: there is no explorer.
+4. **Deploy from Remix** exactly as in [steps 5–6](#5-connect-remix-to-metamask). Choose Environment *Injected Provider – MetaMask* (newer Remix: *Browser Extension* → MetaMask); Remix shows *Custom (31337) network* with your 100 ETH. Set `initialOwner` to your MetaMask address, click **Deploy** and **Confirm**. The transaction is mined instantly. Skip step 7: there is no explorer.
+
+   **Remix still shows Polygon Amoy?** MetaMask keeps a network per site, and switching the dashboard to Hardhat does not switch Remix. Open MetaMask **on the Remix tab** and select *Hardhat Local* there. In **Remix Desktop** that tab is the bridge page it opened in your browser (`http://localhost:49589/`; see the note in [step 5](#5-connect-remix-to-metamask)). Then reselect the environment in Remix.
+
+   **Alternative without MetaMask for this one step:** choose Environment **Hardhat Provider** (under *Dev*), and accept the endpoint `http://127.0.0.1:8545`. Remix then deploys from the node's built-in account, which holds 10,000 test ETH, with no wallet popup. Still set `initialOwner` to **your MetaMask address**, so MetaMask controls the contract in the dashboard. This works in both Remix Desktop and the web version.
 5. **Connect the dashboard** as in [step 8.1](#81-contract-address-always-needed), with Network *Hardhat Local Node (31337)*: paste the address, **Save settings**, **Run checks**.
 6. Continue with steps 9–13 unchanged. Explorer links are not shown on a local chain.
 
