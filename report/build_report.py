@@ -58,6 +58,9 @@ SAFE = {"→": "->", "≤": "<=", "≥": ">=", "≈": "approx.", "‑": "-"}
 BODY = ParagraphStyle("body", fontName="Times-Roman", fontSize=10.2, leading=12.8, textColor=INK, alignment=TA_JUSTIFY, spaceAfter=4)
 TITLE = ParagraphStyle("title", fontName="Helvetica-Bold", fontSize=16, leading=20, textColor=FOREST, alignment=TA_CENTER, spaceAfter=6)
 SUBTITLE = ParagraphStyle("subtitle", parent=BODY, fontName="Helvetica", fontSize=9.5, leading=12.5, alignment=TA_CENTER, textColor=MUTED, spaceAfter=1)
+LEAD = ParagraphStyle("lead", parent=SUBTITLE, fontName="Helvetica-Bold", fontSize=11, leading=14, textColor=INK, spaceAfter=6)
+TEAM = ParagraphStyle("team", fontName="Helvetica", fontSize=10, leading=13, textColor=INK)
+TEAM_HEAD = ParagraphStyle("teamhead", parent=TEAM, fontName="Helvetica-Bold", fontSize=8.2, leading=11, textColor=FOREST)
 H1 = ParagraphStyle("h1", fontName="Helvetica-Bold", fontSize=11.5, leading=14, textColor=FOREST, spaceBefore=8, spaceAfter=4)
 H2 = ParagraphStyle("h2", fontName="Helvetica-Bold", fontSize=10.3, leading=13, textColor=INK, spaceBefore=4, spaceAfter=2)
 LIST = ParagraphStyle("list", parent=BODY, alignment=TA_LEFT, spaceAfter=1.5)
@@ -130,6 +133,33 @@ def make_table(rows: list[list[str]], col_widths: list[float] | None) -> Table:
     return table
 
 
+def team_table(rows: list[list[str]]) -> Table:
+    """Title-page table of team members: centred, no grid, header rule."""
+    data = [[Paragraph(inline(c.upper() if r == 0 else c), TEAM_HEAD if r == 0 else TEAM) for c in row] for r, row in enumerate(rows)]
+    table = Table(data, colWidths=[5.2 * cm, 4.4 * cm], hAlign="CENTER")
+    table.setStyle(
+        TableStyle(
+            [
+                ("LINEBELOW", (0, 0), (-1, 0), 0.8, FOREST),
+                ("LINEBELOW", (0, -1), (-1, -1), 0.4, LINE),
+                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
+            ]
+        )
+    )
+    return table
+
+
+def team_names(markdown: str) -> list[str]:
+    """Names from the title-page table, for the PDF's author field."""
+    match = re.search(r"^\| Team member.*\n\|[-| ]+\|\n((?:\|.*\n?)+)", markdown, re.MULTILINE)
+    if not match:
+        return []
+    return [row.strip().strip("|").split("|")[0].strip() for row in match.group(1).splitlines() if row.strip()]
+
+
 def column_widths(rows: list[list[str]], total: float) -> list[float]:
     """Share the width by content length, but never break inside a word."""
     cols = len(rows[0])
@@ -153,6 +183,7 @@ def parse(markdown: str, width: float) -> list:
     lines = markdown.splitlines()
     i = 0
     in_front_matter = False
+    front_paragraphs = 0
     while i < len(lines):
         line = lines[i].rstrip()
         if not line.strip():
@@ -199,6 +230,9 @@ def parse(markdown: str, width: float) -> list:
                 if not all(re.fullmatch(r":?-{3,}:?", c) for c in cells):
                     rows.append(cells)
                 i += 1
+            if in_front_matter:
+                story.extend([Spacer(1, 2), team_table(rows), Spacer(1, 8)])
+                continue
             # Tables may split across pages; the header row repeats.
             story.append(make_table(rows, column_widths(rows, width)))
             story.append(Spacer(1, 6))
@@ -230,7 +264,11 @@ def parse(markdown: str, width: float) -> list:
         while i < len(lines) and lines[i].strip() and not re.match(r"^(#|\||- |\d+\. |<!--)", lines[i]):
             buf.append(lines[i].strip())
             i += 1
-        story.append(Paragraph(inline(" ".join(buf)), SUBTITLE if in_front_matter else BODY))
+        if in_front_matter:
+            story.append(Paragraph(inline(" ".join(buf)), LEAD if front_paragraphs == 0 else SUBTITLE))
+            front_paragraphs += 1
+        else:
+            story.append(Paragraph(inline(" ".join(buf)), BODY))
     return story
 
 
@@ -266,7 +304,7 @@ def main() -> int:
         topMargin=1.6 * cm,
         bottomMargin=1.8 * cm,
         title="CropLedger: Blockchain-Backed Evidence for Edge AI Crop-Field Data",
-        author="[Student Name]",
+        author=", ".join(team_names(SOURCE.read_text(encoding="utf-8"))) or "CropLedger team",
         subject="Synopsis report - 23CSE335 Blockchain",
         creator="report/build_report.py",
     )
