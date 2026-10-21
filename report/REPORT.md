@@ -2,17 +2,26 @@
 
 Synopsis Report - 23CSE335 Blockchain
 
-Submitted by: 
-- Rutav Desai - CB.SC.U4CSE24664 - [B.Tech / CSE] - October 2026
-- Rehaan Bele - CB.SC.U4CSE24142 - [B.Tech / CSE] - October 2026
+| Team member | Roll number |
+|---|---|
+| Rutav Desai | CB.SC.U4CSE24664 |
+| Rehaan Bele | CB.SC.U4CSE24142 |
+
+B.Tech Computer Science and Engineering, Semester 5
+
+Amrita School of Computing, Amrita Vishwa Vidyapeetham, Coimbatore
+
+October 2026
 
 Source code: https://github.com/Roots26Hz/CropLedger
+
+Deployed contract (Polygon Amoy testnet): `0x791AF8639306c97aD6108557b7eFE62f12420FaD`
 
 ## 1. Project Overview and Abstract
 
 Soil nutrient readings - nitrogen (N), phosphorus (P) and potassium (K) - from in-field sensors increasingly decide fertiliser plans, crop-insurance claims, subsidies and certification. In a dispute they are often the only objective evidence, yet they normally sit in a single vendor-controlled database where records can be edited, deleted or back-dated, and where farmers, insurers and regulators cannot independently check them.
 
-CropLedger anchors such readings on a blockchain. A simulated edge AI device generates NPK readings together with moisture, temperature, pH and an on-device anomaly score, serialises them into a canonical payload, hashes it with keccak-256 and signs the reading with its own key using EIP-712 typed data. A gateway relays the signed reading to the CropLedger smart contract, written in Solidity for the EVM and targeted at the Polygon Amoy testnet. The contract accepts the reading only if it is signed by a registered, non-revoked device and carries a fresh nonce; it then stores compact values and the payload hash and emits an event. Any party can later retrieve a device's or field's history and verify a payload by recomputing its hash. A React dashboard integrated with MetaMask demonstrates the full workflow, including tamper detection and rejected replay, forged and unregistered-device submissions. The system protects the integrity and attribution of recorded readings; it does not, and cannot, prove that the physical sensor was accurate.
+CropLedger anchors such readings on a blockchain. A simulated edge AI device generates NPK readings together with moisture, temperature, pH and an on-device anomaly score, serialises them into a canonical payload, hashes it with keccak-256 and signs the reading with its own key using EIP-712 typed data. A gateway relays the signed reading to the CropLedger smart contract, written in Solidity for the EVM and deployed on the Polygon Amoy testnet. The contract accepts the reading only if it is signed by a registered, non-revoked device and carries a fresh nonce; it then stores compact values and the payload hash and emits an event. Any party can later retrieve a device's or field's history and verify a payload by recomputing its hash. A React dashboard integrated with MetaMask demonstrates the full workflow, including tamper detection and rejected replay, forged and unregistered-device submissions. The system protects the integrity and attribution of recorded readings; it does not, and cannot, prove that the physical sensor was accurate.
 
 ## 2. Problem Statement
 
@@ -60,7 +69,8 @@ The design follows the evidence chain from the field to the verifier:
 | Area | Tools |
 |---|---|
 | Smart contract | Solidity 0.8.34 (EVM cancun, optimizer 200 runs), OpenZeppelin Contracts 5.6.1 (Ownable2Step, EIP712, ECDSA) |
-| IDE and network | Remix IDE for compiling, deploying and demonstrating the contract; Polygon Amoy testnet (chain ID 80002, POL gas) |
+| IDE | Remix IDE (web and desktop) for compiling, deploying and demonstrating the contract |
+| Test networks | Polygon Amoy public testnet (chain ID 80002, gas paid in test POL); local Hardhat node (chain ID 31337, free test ETH) |
 | Wallet | MetaMask via EIP-1193, with EIP-6963 wallet discovery and network switching |
 | Development and testing | Hardhat 3.20 (Mocha + ethers), ethers.js 6.17, Vitest 5, ESLint 10, GitHub Actions |
 | Simulator and gateway | Node.js 24 + TypeScript (shared library used by the tests, the CLI and the browser) |
@@ -82,7 +92,11 @@ The dashboard has eight pages: Overview, Live Sensor Feed, Device Registry, Bloc
 
 ## 8. Testing and Observed Results
 
-All results below were obtained on 18 October 2026 and are reproduced by *npm test*:
+The system was tested at three levels: automated tests, a public deployment on the Polygon Amoy testnet, and a local Hardhat node.
+
+### 8.1 Automated tests
+
+All results below were obtained on 21 October 2026 and are reproduced by *npm test*:
 
 | Suite | Scope | Result |
 |---|---|---|
@@ -91,16 +105,34 @@ All results below were obtained on 18 October 2026 and are reproduced by *npm te
 | Local-mode parity (1 scenario, 19 checks) | Identical accept/reject outcomes for the contract and the in-browser ledger | passed |
 | Unit tests (Vitest, 71) | Canonical payload, signing, simulator, networks, fee suggestion, error decoding, configuration, local ledger service | 71 passed |
 
-Type checking, linting, the ABI check, the production build and a clean-clone install passed, and the GitHub Actions workflow completed successfully. Measured gas on the Hardhat network: registerDevice 184,247; first submitReading of a device approx. 134,240; subsequent readings approx. 100,040. End-to-end runs against a local Hardhat node confirmed real transactions for registration and readings; a genuine payload verified true and a payload with one altered nutrient value verified false; replayed, unregistered, forged and revoked submissions were rejected with StaleNonce, UnknownDevice, InvalidSignature and DeviceNotActive respectively, while the revoked device's history remained verifiable.
+Type checking, linting, the ABI check, the production build and a clean-clone install passed, and the GitHub Actions workflow completed successfully. Measured gas on the Hardhat network: deployment 1,568,969; registerDevice 184,247; first submitReading of a device approx. 134,240; subsequent readings approx. 100,040.
+
+### 8.2 Polygon Amoy testnet
+
+The contract was compiled in Remix IDE and deployed through MetaMask on 18 October 2026 at the address above (explorer: https://amoy.polygonscan.com/address/0x791AF8639306c97aD6108557b7eFE62f12420FaD). A deployment on a blockchain is permanent, so this one contract was reused in every later session (loaded in Remix with *Add Contract* / *At Address*) instead of being deployed again. Its on-chain state was read back on 21 October 2026: the EIP-712 domain is "CropLedger" version 1 on chain 80002, *READING_TYPEHASH* matches the off-chain signer, three devices are registered and two signed readings are recorded. All six transactions succeeded:
+
+| Transaction | Gas used | Fee paid (test POL) |
+|---|---|---|
+| Contract deployment from Remix | 1,575,689 | 0.0734 (at 46.6 gwei, chosen by MetaMask) |
+| registerDevice, 3 devices | 185,687 - 203,567 | 0.0056 - 0.0059 each (approx. 30 gwei) |
+| submitReading, 2 signed readings | 133,174 - 151,054 | 0.0040 - 0.0045 each (30 gwei) |
+| Total, 6 transactions | | 0.0990 |
+
+Three observations from the public network shaped the final design. First, Polygon refuses transactions whose priority fee is below 25 gwei, and wallets can propose less on a quiet testnet; after the first reading submission failed, the gateway was changed to propose about 30 gwei. Second, deployment dominates the cost: the six transactions used the whole 0.1 POL that a faucet gives per day, so the revocation step of the revoked-device scenario could not be sent on Amoy and was carried out on the local node instead (Section 8.3). The dashboard now checks the account balance before opening MetaMask. Third, the free public RPC refuses batched JSON-RPC requests, so the dashboard sends one request at a time. Attacks that are rejected before broadcast (replay, unregistered device, forged signature) cost no gas and leave no transaction on the explorer.
+
+### 8.3 Local Hardhat node
+
+A local Hardhat node (chain ID 31337) runs the same contract with unlimited free test ETH, which removes the faucet limit. The same Remix, MetaMask and dashboard workflow was used, with the MetaMask account funded by *npm run fund:local*. The complete scenario set was run: device registration and signed readings were confirmed in blocks; a genuine payload verified true and a copy with one altered nutrient value verified false; and a device was revoked. Replayed, unregistered, forged and revoked-device submissions were rejected with StaleNonce, UnknownDevice, InvalidSignature and DeviceNotActive respectively, while the revoked device's history remained verifiable.
+
+<!-- image: docs/screenshots/tamper-detection.png | Figure 2. Verification Lab on a local Hardhat chain (real application screenshot): the stored payload verifies, while a copy with N changed from 143 to 168 is rejected by verifyReading(). -->
 
 | Capability | Status |
 |---|---|
 | Contract, simulator, gateway, CLI, dashboard, local demonstration mode | Implemented |
-| All functional and security rules; MetaMask transaction path (via an EIP-1193 shim) | Tested locally (Hardhat) |
-| Deployment and transactions on Polygon Amoy; confirmation latency; cost in POL | Not yet performed - to be completed with the Remix deployment guide |
+| Deployment, device registration and signed readings on Polygon Amoy | Done: 6 confirmed transactions (Section 8.2) |
+| Full scenario set, including revocation and all four attacks | Done on the local Hardhat node; revocation on Amoy pending test POL |
+| Automated tests of real MetaMask pop-ups; confirmation latency on Amoy | Not measured |
 | Batching, IPFS payloads, hardware devices | Planned (future scope) |
-
-<!-- image: docs/screenshots/tamper-detection.png | Figure 2. Verification Lab on a local Hardhat chain (real application screenshot): the stored payload verifies, while a copy with N changed from 143 to 168 is rejected by verifyReading(). -->
 
 ## 9. Limitations
 
@@ -108,7 +140,7 @@ Type checking, linting, the ABI check, the production build and a clean-clone in
 - Devices are simulated; their keys are held in browser storage or a local file rather than secure hardware.
 - One transaction per reading is simple but expensive at scale; full payloads must be retained off-chain by their holder.
 - The registry owner is a trusted single account; renouncing ownership would freeze the registry.
-- No public testnet run and no automated tests of real MetaMask pop-ups have been carried out yet.
+- Public-testnet activity is limited by faucet allowances (about 0.1 POL per day); deployment alone cost 0.073 POL. Real MetaMask pop-ups are not covered by automated tests.
 
 ## 10. Future Scope
 
