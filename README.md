@@ -300,7 +300,7 @@ Every write (register, revoke, submit) opens a MetaMask approval. Rejecting is h
   ```
   The script refuses any chain other than 80002, checks the balance, waits for 2 confirmations and prints explorer links.
 
-> **No public Amoy deployment has been made by the authors yet.** There is no official contract address in this repository; use your own.
+> **Team deployment on Amoy:** [`0x791AF8639306c97aD6108557b7eFE62f12420FaD`](https://amoy.polygonscan.com/address/0x791AF8639306c97aD6108557b7eFE62f12420FaD), deployed from Remix on 18 October 2026 (deployment, 3 device registrations and 2 signed readings confirmed; see [TESTING.md](TESTING.md#polygon-amoy-team-deployment)). You can read it from the dashboard, but only its owner can register or revoke devices, so deploy your own copy to try the full workflow.
 
 ## 17. Connecting the dashboard to your contract
 
@@ -344,7 +344,7 @@ Read [docs/SECURITY.md](docs/SECURITY.md) for the full threat model and trust as
 - One transaction per reading: simple, but costly at scale.
 - Full payloads are stored off-chain by whoever generated them. The dashboard keeps them per browser and supports export and import.
 - The owner is a single account (use a multisig in practice).
-- **Not yet verified on a public testnet.** Everything was tested on Hardhat (in-process and `npm run node`). MetaMask popups were not automated: the wallet path was exercised with an EIP-1193 test shim. See [TESTING.md](TESTING.md#6-known-limitations).
+- **Limited public-testnet activity.** The contract is deployed on Amoy and its registration and reading flow was confirmed there, but a faucet gives about 0.1 POL a day and deployment alone cost 0.073 POL. The full scenario set, including revocation, was run on a local Hardhat node. MetaMask popups are not covered by automated tests. See [TESTING.md](TESTING.md#6-known-limitations).
 
 ## 22. Future improvements
 

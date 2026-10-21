@@ -4,7 +4,7 @@ This guide is the exact workflow for showing the CropLedger smart contract in **
 
 The Solidity source is shown **only in Remix**. The dashboard never displays Solidity code; it talks to the deployed contract through its ABI and address.
 
-> **Status of this repository:** the contract has been tested on a local Hardhat chain. **No public Amoy deployment has been made by the authors yet.** Once you complete this guide you will have your own deployment; record its address and transaction hash in your report.
+> **Status of this repository:** the authors' deployment is [`0x791AF8639306c97aD6108557b7eFE62f12420FaD`](https://amoy.polygonscan.com/address/0x791AF8639306c97aD6108557b7eFE62f12420FaD) on Amoy (18 October 2026). Following this guide gives you **your own** deployment, which you own and can register devices on; record its address and transaction hash in your report.
 
 ---
 

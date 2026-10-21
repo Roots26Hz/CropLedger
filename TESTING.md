@@ -48,7 +48,23 @@ Printed by the contract test suite after each run:
 | `submitReading`, first reading of a device | 134 230 – 134 254 (varies by a few dozen gas with signature bytes) |
 | `submitReading`, later readings | 100 030 – 100 054 |
 
-Gas *units* are determined by the EVM and would be similar on Amoy; the cost in POL depends on the gas price at the time and was **not measured**, because no public testnet deployment has been made yet.
+Gas *units* are determined by the EVM; the figures on Amoy below are in the same range (they differ slightly because the Remix build and first-time storage writes differ).
+
+### Polygon Amoy (team deployment)
+
+Contract [`0x791AF8639306c97aD6108557b7eFE62f12420FaD`](https://amoy.polygonscan.com/address/0x791AF8639306c97aD6108557b7eFE62f12420FaD), deployed from Remix through MetaMask. The receipts were read back from the chain on 21 October 2026; all six transactions have status 1 (success).
+
+| Date (UTC) | Transaction | Gas used | Gas price | Fee (test POL) |
+|---|---|---|---|---|
+| 2026-10-18 18:43 | Deployment ([0x4573ab88…](https://amoy.polygonscan.com/tx/0x4573ab8826fcf21efe726eec69d428e418d9fd6b0c4bbd46824e2a4bf4c9ef97)) | 1 575 689 | 46.56 gwei (MetaMask's choice) | 0.0734 |
+| 2026-10-18 18:58 | `registerDevice` CL-DEV-0001 | 203 567 | 29.1 gwei | 0.0059 |
+| 2026-10-18 19:18 | `submitReading` CL-DEV-0001 #0 | 151 054 | 30 gwei | 0.0045 |
+| 2026-10-18 19:31 | `registerDevice` REVOKE-DEMO-B13B | 185 687 | 30 gwei | 0.0056 |
+| 2026-10-18 19:32 | `registerDevice` REVOKE-DEMO-A768 | 185 687 | 30 gwei | 0.0056 |
+| 2026-10-18 19:32 | `submitReading` REVOKE-DEMO-A768 #0 | 133 174 | 30 gwei | 0.0040 |
+| | **Total** | | | **0.0990** |
+
+The on-chain state matches the repository: EIP-712 domain `CropLedger` v`1` on chain 80002, and `READING_TYPEHASH` equal to the off-chain signer's. Three devices are registered and two readings are recorded. The revocation step of the revoked-device scenario is not on chain: these six transactions used the day's whole 0.1 POL faucet allowance, so that scenario was completed on the local node (section 5). Confirmation latency was not measured.
 
 ## 4. Test cases
 
@@ -99,6 +115,7 @@ Runs one scripted scenario (unregistered, register, duplicate, valid, replay, ga
 | CLI on a live local chain | `npm run node`, `npm run deploy:local`, `npm run sim -- register / run / attack replay / attack unregistered / attack forged / attack revoked --confirm-revoke / verify / remix-args` | Readings confirmed in blocks with tx hashes; replay → `StaleNonce`, unregistered → `UnknownDevice`, forged → `InvalidSignature`, revoked → `DeviceNotActive` with history kept; genuine payload *VERIFIED*, payload with N + 5 *MISMATCH* |
 | Dashboard, local demo mode | In-app browser: register device, bursts, spike injection, Verification Lab, all four attacks, Evidence Explorer, Transactions | All behaved as expected (see screenshot `docs/screenshots/local-demo-mode.png`) |
 | Dashboard, network mode (Hardhat) | Dashboard against `npm run node` with a **test-only EIP-1193 shim** that forwards wallet requests to the node's unlocked account (exercises the same BrowserProvider → `eth_sendTransaction` path as MetaMask; the shim is not part of the app) | Registration, 5 readings confirmed in blocks, verification true/false, attacks rejected; with *broadcast* enabled, attacks mined with status 0 and decoded reasons; lifecycle and recent blocks shown from real chain data |
+| Polygon Amoy (public testnet) | Remix → MetaMask deployment, then dashboard registration and readings; on-chain state and receipts read back on 21 October 2026 | 6 successful transactions, 0.099 POL in total (table in section 3); the first reading attempt failed after MetaMask confirmation, which led to the gateway proposing Polygon-compliant fees (≥ 25 gwei tip) |
 | Local chain without a faucet | `npm run node`, then `npm run fund:local -- <fresh address>`; that fresh account (never funded otherwise) deploys CropLedger with itself as owner, registers and revokes a device. Also `fund:local` with no node running and with an invalid address | 100 ETH received in block 1; deployment 1 568 969 gas, owner = funded account, both owner transactions status 1. Clear messages: *No local node answers … Start it first with `npm run node`* and the usage line |
 | Wallet-not-installed path | Dashboard with no injected wallet | "No wallet detected" badge; owner and submit actions disabled with reasons |
 
@@ -107,7 +124,7 @@ Bugs found and fixed through these checks (see the git history): device auto-sel
 ## 6. Known limitations
 
 - **No automated MetaMask UI tests.** The wallet path was exercised with an EIP-1193 shim against a local node; the real MetaMask popups (connect, switch network, approve/reject) must be checked manually — see [docs/DEMO_GUIDE.md](docs/DEMO_GUIDE.md), scenario 6.
-- **No public testnet run yet.** Amoy deployment, confirmation latency, explorer pages and POL costs are untested until you complete [REMIX_DEPLOYMENT_GUIDE.md](REMIX_DEPLOYMENT_GUIDE.md).
+- **Limited public-testnet run.** Amoy deployment, registration, signed readings and POL costs were confirmed (section 3), but revocation was not sent on Amoy (the faucet allowance ran out) and confirmation latency was not measured.
 - **No Solidity coverage report** is published (Hardhat supports `npx hardhat test --coverage` if needed).
 - **No browser E2E suite in CI.** Frontend logic is unit-tested; full UI flows were verified manually as listed above.
 - Timing-dependent behaviour (public RPC rate limits, reorgs) is not simulated.
