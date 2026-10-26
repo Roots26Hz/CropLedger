@@ -85,3 +85,6 @@ keystore*.json
 
 # Generated single-file contract for Remix (npm run flatten)
 *.flat.sol
+
+# Personal presentation notes (kept locally, not published)
+ORAL_PRESENTATION_GUIDE.md
