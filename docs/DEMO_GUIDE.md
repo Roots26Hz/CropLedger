@@ -124,4 +124,3 @@ History check: 1 reading(s) still retrievable; verifyReading(#0) = true.
 | 3:30–4:30 | Attack scenarios: replay + unregistered (+ revoked if time) |
 | 4:30–5:00 | Network & Consensus lifecycle; close with the limitation (integrity ≠ sensor accuracy) |
 
-The full narration is in [ORAL_PRESENTATION_GUIDE.md](../ORAL_PRESENTATION_GUIDE.md).

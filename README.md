@@ -6,6 +6,8 @@
 
 CropLedger is an end-to-end blockchain application for recording, authenticating and verifying crop-field sensor readings. It uses Solidity, React, MetaMask and the Polygon Amoy testnet. A simulated edge device signs soil nutrient readings (N, P, K). A Solidity smart contract accepts them only from registered devices and stores them so they are tamper-evident. A React dashboard lets anyone retrieve the history, verify a reading and watch tampering, replays and forged data being rejected.
 
+**Live on Polygon Amoy:** [`0x791AF8639306c97aD6108557b7eFE62f12420FaD`](https://amoy.polygonscan.com/address/0x791AF8639306c97aD6108557b7eFE62f12420FaD) · built as a course project for *23CSE335 Blockchain* at Amrita Vishwa Vidyapeetham ([authors](#26-authors-and-contributors)).
+
 ![CropLedger dashboard overview](docs/screenshots/overview.png)
 
 <sub>Screenshot of the running app connected to a local Hardhat chain (real transactions and blocks). See [Screenshots](#screenshots).</sub>
@@ -36,7 +38,7 @@ CropLedger is an end-to-end blockchain application for recording, authenticating
 20. [Security considerations](#20-security-considerations)
 21. [Known limitations](#21-known-limitations)
 22. [Future improvements](#22-future-improvements)
-23. [Documentation, report and presentation](#23-documentation-report-and-presentation)
+23. [Documentation and report](#23-documentation-and-report)
 24. [Screenshots](#screenshots)
 25. [License](#25-license)
 26. [Authors and contributors](#26-authors-and-contributors)
@@ -119,7 +121,7 @@ The details (payload schema, signing domain, storage layout, lifecycle states, m
 | Area | Technology (version) |
 |---|---|
 | Smart contract | Solidity **0.8.34** (EVM `cancun`, optimizer 200 runs), OpenZeppelin Contracts **5.6.1** (`Ownable2Step`, `EIP712`, `ECDSA`) |
-| Contract IDE (demonstration) | **Remix IDE** (web) |
+| Contract IDE (demonstration) | **Remix IDE** (web or desktop) |
 | Testnet | **Polygon Amoy** (chain ID 80002, gas token POL) |
 | Wallet | **MetaMask** (EIP-1193 / EIP-6963), any current version |
 | Development & tests | **Hardhat 3.20** (mocha + ethers toolbox), Mocha, Chai |
@@ -160,7 +162,7 @@ CropLedger/
 │   ├── REPORT.md                   synopsis source (editable)
 │   ├── build_report.py             PDF generator
 │   └── CropLedger_Synopsis.pdf     ≤ 5-page synopsis
-├── REMIX_DEPLOYMENT_GUIDE.md  ORAL_PRESENTATION_GUIDE.md  TESTING.md
+├── REMIX_DEPLOYMENT_GUIDE.md  TESTING.md
 ├── .github/workflows/ci.yml
 ├── hardhat.config.ts  vitest.config.ts  eslint.config.js  tsconfig.json
 ├── package.json  package-lock.json  .nvmrc  .env.example  LICENSE
@@ -356,20 +358,17 @@ Read [docs/SECURITY.md](docs/SECURITY.md) for the full threat model and trust as
 - An event indexer (e.g. The Graph) for large histories.
 - Playwright end-to-end tests with a wallet test harness.
 
-## 23. Documentation, report and presentation
+## 23. Documentation and report
 
 | Document | Purpose |
 |---|---|
 | [REMIX_DEPLOYMENT_GUIDE.md](REMIX_DEPLOYMENT_GUIDE.md) | Remix → MetaMask → Amoy workflow, ABI/address transfer, register/submit/verify |
-| [ORAL_PRESENTATION_GUIDE.md](ORAL_PRESENTATION_GUIDE.md) | 5-minute script, concepts, viva questions and answers |
 | [docs/DEMO_GUIDE.md](docs/DEMO_GUIDE.md) | Six demonstration scenarios with expected outputs |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design, data formats, contract internals |
 | [docs/SECURITY.md](docs/SECURITY.md) | Threat model, trust assumptions, secret handling |
 | [TESTING.md](TESTING.md) | Test commands, cases and actual results |
 | [report/CropLedger_Synopsis.pdf](report/CropLedger_Synopsis.pdf) | Synopsis report (≤ 5 pages); source in [report/REPORT.md](report/REPORT.md) |
 | [CropLedger_README.md](CropLedger_README.md) | Original proposal |
-
-There is no PowerPoint: the project is presented live from Remix and the dashboard.
 
 Rebuild the synopsis PDF after editing `report/REPORT.md` (the script fails if it exceeds 5 pages):
 
@@ -390,15 +389,19 @@ These are real captures of the running application, nine of them against a local
 | ![Transactions](docs/screenshots/transactions.png) Transactions and their lifecycle | ![Network & consensus](docs/screenshots/network-consensus.png) Lifecycle trace, recent blocks, illustrative consensus |
 | ![Device registry](docs/screenshots/device-registry.png) Device registry | ![Evidence explorer](docs/screenshots/evidence-explorer.png) Evidence explorer |
 
-Screenshots of the Polygon Amoy deployment are not included yet. Add them to `docs/screenshots/` after you complete the Remix deployment.
+The Amoy deployment has no screenshots here; its transactions are public on the [explorer](https://amoy.polygonscan.com/address/0x791AF8639306c97aD6108557b7eFE62f12420FaD).
 
 ## 25. License
 
-[MIT](LICENSE). The copyright holder line is a placeholder: replace `[Copyright Holder]` with your name.
+Released under the [MIT License](LICENSE).
 
 ## 26. Authors and contributors
 
-- **[Author name]**: *[Roll number / course: 23CSE335 Blockchain]*
-- **[Contributor name]**: *[role]*
+- **Rutav Desai**
+- **Rehaan Atul Bele**
+
+B.Tech Computer Science and Engineering, Amrita School of Computing, Amrita Vishwa Vidyapeetham, Coimbatore. Course project for *23CSE335 Blockchain* (October 2026).
+
+Issues and pull requests are welcome.
 
 Repository: <https://github.com/Roots26Hz/CropLedger>
